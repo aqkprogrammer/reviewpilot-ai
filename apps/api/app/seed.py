@@ -205,7 +205,8 @@ async def seed_demo(db: AsyncSession) -> dict:
     rnd = random.Random(42)
     await seed_reference_data(db)
     if await db.scalar(select(Organization).where(Organization.slug == "spice-route-kitchen")):
-        return {"status": "already_seeded"}
+        await sync_demo_passwords(db)
+        return {"status": "already_seeded", "passwords": "synced"}
 
     plans = {p.code: p for p in (await db.scalars(select(SubscriptionPlan))).all()}
     super_admin = await _user(db, "superadmin@reviewpilot.dev", "Platform Admin", settings.seed_password_super_admin, PlatformRole.SUPER_ADMIN)
@@ -393,6 +394,27 @@ async def seed_demo(db: AsyncSession) -> dict:
     primary = await db.scalar(select(Organization).where(Organization.slug == "spice-route-kitchen"))
     await refresh_insights(db, primary.id)
     return {"status": "seeded", "organization": str(primary.id)}
+
+
+SEED_ACCOUNTS = {
+    "superadmin@reviewpilot.dev": "seed_password_super_admin",
+    "owner@reviewpilot.dev": "seed_password_owner",
+    "admin@reviewpilot.dev": "seed_password_admin",
+    "staff@reviewpilot.dev": "seed_password_staff",
+}
+
+
+async def sync_demo_passwords(db: AsyncSession) -> None:
+    """Keep seeded demo accounts' passwords equal to the configured SEED_PASSWORD_* values.
+    Only touches rows created by the seed (is_seed=True); never runs in production."""
+    if settings.is_production:
+        return
+    for email, attr in SEED_ACCOUNTS.items():
+        user = await db.scalar(select(User).where(User.email == email, User.is_seed.is_(True)))
+        if user is not None:
+            user.password_hash = hash_password(getattr(settings, attr))
+            user.status = "active"
+    await db.commit()
 
 
 async def bootstrap_super_admin(db: AsyncSession, email: str, name: str, password: str) -> User:

@@ -97,5 +97,5 @@ in-process) and `reviewpilot-web` (Node; `next start`). Managed `postgres://` UR
 After the first deploy set `FRONTEND_URL`, `CORS_ORIGINS`, `BACKEND_URL` on the API and
 `BACKEND_URL`, `NEXT_PUBLIC_SITE_URL` on the web service, then redeploy (the web rewrites read
 `BACKEND_URL` at build time). `ENVIRONMENT=demo` requires generated secrets, a Fernet
-`ENCRYPTION_KEY` and `COOKIE_SECURE=true`; demo account passwords are generated
-(`SEED_PASSWORD_*` in the API service environment).
+`ENCRYPTION_KEY` and `COOKIE_SECURE=true`; demo account passwords come from `SEED_PASSWORD_*` and are re-applied to the
+seeded accounts on every boot.

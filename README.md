@@ -400,8 +400,9 @@ make e2e          # Playwright (needs API with OAUTH_MOCK_ENABLED=true + web run
    - Web: `BACKEND_URL` = API URL (read at build time), `NEXT_PUBLIC_SITE_URL` = web URL
 
 The blueprint runs with `ENVIRONMENT=demo`: seeded sample data, simulated messaging and payments,
-offline AI — but generated secrets, generated demo passwords (see the API service's environment)
-and secure cookies. For production set `ENVIRONMENT=production`, `DEMO_MODE=false`,
+offline AI — with generated secrets and secure cookies. The demo accounts use the passwords in the
+table above (re-applied on every boot); they are public, so change `SEED_PASSWORD_*` if the instance
+should not be openly accessible. For production set `ENVIRONMENT=production`, `DEMO_MODE=false`,
 `SEED_DEMO_DATA=false`, add real integration keys, and move the worker to its own service.
 Free-plan notes: services sleep when idle (and the embedded worker with them), free Postgres expires
 after 30 days, and uploads are on ephemeral disk unless S3 is configured. See

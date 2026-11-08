@@ -72,15 +72,17 @@ services:
         sync: false
       - key: CORS_ORIGINS
         sync: false
-      # Demo account passwords — generated so the public repo's dev defaults never work here.
+      # Demo account passwords (re-applied on every boot in demo mode). These are public in this
+      # repo — anyone can sign in to a demo instance, including its Super Admin console. Change them
+      # (or set generateValue: true) if the instance should not be openly accessible.
       - key: SEED_PASSWORD_OWNER
-        generateValue: true
+        value: Owner@12345
       - key: SEED_PASSWORD_ADMIN
-        generateValue: true
+        value: Admin@12345
       - key: SEED_PASSWORD_STAFF
-        generateValue: true
+        value: Staff@12345
       - key: SEED_PASSWORD_SUPER_ADMIN
-        generateValue: true
+        value: SuperAdmin@12345
       # Optional integrations — leave unset to keep honest "not configured"/simulated states.
       - key: OPENAI_API_KEY
         sync: false
