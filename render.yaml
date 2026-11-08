@@ -105,7 +105,8 @@ services:
     plan: free
     region: singapore
     buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @reviewpilot/web build
-    startCommand: cd apps/web && pnpm exec next start -p $PORT
+    # Start without pnpm/corepack so boot never depends on a network download.
+    startCommand: cd apps/web && node_modules/.bin/next start -p $PORT
     healthCheckPath: /
     envVars:
       - key: NODE_VERSION
