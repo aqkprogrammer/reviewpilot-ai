@@ -6,6 +6,10 @@
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/aqkprogrammer/reviewpilot-ai)
 
+**Live demo:** https://reviewpilot-web-g8e9.onrender.com — sample data only; sign in with the demo accounts
+listed under [Demo credentials](#demo-credentials-development-only). Free hosting sleeps when idle, so the first
+request can take about a minute.
+
 ReviewPilot AI is a multi-tenant reputation-management SaaS for local businesses (restaurants,
 clinics, salons, hotels, agencies…), India-first. It collects genuine customer feedback over
 **WhatsApp, QR, email and SMS**, syncs Google reviews through the official Business Profile API,
