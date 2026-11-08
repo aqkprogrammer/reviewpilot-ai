@@ -1,0 +1,13 @@
+{
+  "name": "reviewpilot-ai",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "dev": "pnpm --filter @reviewpilot/web dev",
+    "build": "pnpm --filter @reviewpilot/web build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter @reviewpilot/web test",
+    "test:e2e": "pnpm --filter @reviewpilot/web test:e2e"
+  }
+}

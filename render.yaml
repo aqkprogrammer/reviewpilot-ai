@@ -1,0 +1,117 @@
+# ReviewPilot AI — Render Blueprint
+# Deploys: Next.js web (public site + business app + admin), FastAPI API (+ embedded ARQ worker),
+# managed PostgreSQL and Render Key Value (Redis). See docs/DEPLOYMENT.md → "Render".
+#
+# ENVIRONMENT=demo gives a public showcase: seeded sample data, simulated messaging/payments,
+# offline AI — with strong generated secrets and secure cookies. Switch to ENVIRONMENT=production
+# (DEMO_MODE=false, SEED_DEMO_DATA=false) once real integration credentials are configured.
+
+databases:
+  - name: reviewpilot-db
+    databaseName: reviewpilot
+    user: reviewpilot
+    plan: free
+    region: singapore
+    postgresMajorVersion: "17"
+
+services:
+  - type: keyvalue
+    name: reviewpilot-redis
+    plan: free
+    region: singapore
+    maxmemoryPolicy: noeviction
+    ipAllowList: [] # private network only
+
+  - type: web
+    name: reviewpilot-api
+    runtime: python
+    plan: free
+    region: singapore
+    rootDir: apps/api
+    buildCommand: pip install --upgrade pip uv && uv export --frozen --no-dev --no-hashes -o requirements.txt && pip install -r requirements.txt
+    startCommand: sh scripts/render-start.sh
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: ENVIRONMENT
+        value: demo
+      - key: DEMO_MODE
+        value: "true"
+      - key: SEED_DEMO_DATA
+        value: "true"
+      # Free plan has no background workers; run ARQ inside the API instance.
+      # On a paid plan, set this to false and add a `worker` service running:
+      #   arq app.worker.settings.WorkerSettings
+      - key: RUN_WORKER_IN_PROCESS
+        value: "true"
+      - key: INLINE_JOBS_FALLBACK
+        value: "false"
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: reviewpilot-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: reviewpilot-redis
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+      # Must be a Fernet key: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+      - key: ENCRYPTION_KEY
+        sync: false
+      # Public URLs (set after the first deploy, e.g. https://reviewpilot-web.onrender.com)
+      - key: FRONTEND_URL
+        sync: false
+      - key: BACKEND_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      # Demo account passwords — generated so the public repo's dev defaults never work here.
+      - key: SEED_PASSWORD_OWNER
+        generateValue: true
+      - key: SEED_PASSWORD_ADMIN
+        generateValue: true
+      - key: SEED_PASSWORD_STAFF
+        generateValue: true
+      - key: SEED_PASSWORD_SUPER_ADMIN
+        generateValue: true
+      # Optional integrations — leave unset to keep honest "not configured"/simulated states.
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+
+  - type: web
+    name: reviewpilot-web
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @reviewpilot/web build
+    startCommand: cd apps/web && pnpm exec next start -p $PORT
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      # Read at build time by next.config.ts rewrites — the API's public https URL.
+      - key: BACKEND_URL
+        sync: false
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false

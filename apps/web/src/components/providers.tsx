@@ -1,0 +1,40 @@
+"use client";
+import * as React from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "sonner";
+import { TooltipProvider } from "@/components/ui/controls";
+import { ThemeProvider, useTheme } from "@/components/theme";
+import { ApiError } from "@/lib/api";
+
+function ThemedToaster() {
+  const { resolved } = useTheme();
+  return <Toaster position="bottom-right" theme={resolved} richColors closeButton toastOptions={{ className: "!rounded-xl !text-[13px]" }} />;
+}
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  const [client] = React.useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 30_000,
+            refetchOnWindowFocus: false,
+            retry: (count, err) => {
+              if (err instanceof ApiError && err.status < 500) return false;
+              return count < 2;
+            },
+          },
+        },
+      }),
+  );
+  return (
+    <QueryClientProvider client={client}>
+      <ThemeProvider>
+        <TooltipProvider delayDuration={200}>
+          {children}
+          <ThemedToaster />
+        </TooltipProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+}

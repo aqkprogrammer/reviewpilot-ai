@@ -1,0 +1,95 @@
+# Local full-stack environment:  docker compose up --build
+# Web http://localhost:3000 · API http://localhost:8000/api/v1/docs
+name: reviewpilot
+
+x-api-env: &api-env
+  ENVIRONMENT: development
+  DEMO_MODE: "true"
+  OAUTH_MOCK_ENABLED: "true"
+  DATABASE_URL: postgresql+asyncpg://reviewpilot:reviewpilot@postgres:5432/reviewpilot
+  REDIS_URL: redis://redis:6379/0
+  INLINE_JOBS_FALLBACK: "false"
+  FRONTEND_URL: http://localhost:3000
+  BACKEND_URL: http://localhost:8000
+  CORS_ORIGINS: http://localhost:3000
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: reviewpilot
+      POSTGRES_PASSWORD: reviewpilot
+      POSTGRES_DB: reviewpilot
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reviewpilot -d reviewpilot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    build: { context: ./apps/api }
+    env_file: [{ path: .env, required: false }]
+    environment: *api-env
+    command: ["sh", "-c", "alembic upgrade head && python -m app.cli seed && python -m app.cli seed-demo"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  api:
+    build: { context: ./apps/api }
+    env_file: [{ path: .env, required: false }]
+    environment: *api-env
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    ports: ["8000:8000"]
+    volumes: ["./apps/api/app:/srv/api/app", "apistorage:/srv/api/storage"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  worker:
+    build: { context: ., dockerfile: apps/worker/Dockerfile }
+    env_file: [{ path: .env, required: false }]
+    environment: *api-env
+    volumes: ["./apps/api/app:/srv/api/app"]
+    depends_on:
+      api: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  web:
+    image: node:22-slim
+    working_dir: /repo
+    environment:
+      BACKEND_URL: http://api:8000
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: "1"
+    command: ["sh", "-c", "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @reviewpilot/web exec next dev --hostname 0.0.0.0 --port 3000"]
+    ports: ["3000:3000"]
+    volumes: [".:/repo", "web_node_modules:/repo/node_modules"]
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  pgdata:
+  apistorage:
+  web_node_modules:

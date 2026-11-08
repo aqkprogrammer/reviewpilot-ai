@@ -1,0 +1,10 @@
+# Railway service: ReviewPilot worker (ARQ)
+# Root directory: / (repository root)   ·   Config file path: infrastructure/railway.worker.toml
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/worker/Dockerfile"
+
+[deploy]
+startCommand = "arq app.worker.settings.WorkerSettings"
+restartPolicyType = "ALWAYS"
+numReplicas = 1
