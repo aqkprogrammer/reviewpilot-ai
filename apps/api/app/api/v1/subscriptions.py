@@ -137,9 +137,9 @@ async def invoice_pdf(invoice_id: uuid.UUID, db: DB, ctx: OrgContext = Billing):
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
     w, h = A4
-    c.setFillColor(HexColor("#6a4cff"))
+    c.setFillColor(HexColor("#0e9aa7"))
     c.rect(0, h - 8, w, 8, stroke=0, fill=1)
-    c.setFillColor(HexColor("#16112b"))
+    c.setFillColor(HexColor("#0b1218"))
     c.setFont("Helvetica-Bold", 22)
     c.drawString(40, h - 64, "Tax Invoice" if not (pay and pay.provider == "mock") else "Invoice (SIMULATED — demo mode)")
     c.setFont("Helvetica", 10)

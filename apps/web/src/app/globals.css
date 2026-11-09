@@ -8,12 +8,14 @@
 @theme inline {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-display: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 
   --color-background: var(--background);
   --color-background-subtle: var(--background-subtle);
   --color-card: var(--card);
   --color-card-elevated: var(--card-elevated);
   --color-popover: var(--popover);
+  --color-surface-hover: var(--surface-hover);
   --color-foreground: var(--foreground);
   --color-foreground-soft: var(--foreground-soft);
   --color-muted: var(--muted);
@@ -30,13 +32,16 @@
   --color-primary-soft-foreground: var(--primary-soft-foreground);
   --color-primary-foreground: var(--primary-foreground);
 
-  --color-blue: var(--blue);
-  --color-blue-soft: var(--blue-soft);
-  --color-purple: var(--purple);
-  --color-purple-soft: var(--purple-soft);
-  --color-magenta: var(--magenta);
   --color-cyan: var(--cyan);
   --color-cyan-soft: var(--cyan-soft);
+  --color-ice: var(--ice);
+  --color-ice-soft: var(--ice-soft);
+  --color-mint: var(--mint);
+  --color-mint-soft: var(--mint-soft);
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+  --color-blue: var(--ice);
+  --color-blue-soft: var(--ice-soft);
 
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
@@ -53,18 +58,18 @@
   --color-sidebar-active: var(--sidebar-active);
   --color-sidebar-border: var(--sidebar-border);
 
+  --radius-xs: 4px;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 10px);
+  --radius-2xl: calc(var(--radius) + 8px);
 
   --shadow-xs: var(--shadow-xs);
   --shadow-sm: var(--shadow-sm);
   --shadow-md: var(--shadow-md);
   --shadow-lg: var(--shadow-lg);
-  --shadow-glow: var(--shadow-glow);
-  --shadow-glow-magenta: var(--shadow-glow-magenta);
+  --shadow-glow: var(--glow);
 
   --ease-out-expo: var(--ease-out);
 
@@ -72,24 +77,24 @@
   --animate-fade-up: fade-up 0.5s var(--ease-out) both;
   --animate-float: float 6s ease-in-out infinite;
   --animate-pulse-ring: pulse-ring 2s var(--ease-out) infinite;
+  --animate-scan: scan 6s linear infinite;
+  --animate-blink: blink 1.2s steps(2, start) infinite;
 }
 
-@keyframes shimmer {
-  from { background-position: -200% 0; }
-  to { background-position: 200% 0; }
-}
-@keyframes fade-up {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
-}
+@keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+@keyframes fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
 @keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--success) 50%, transparent); }
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, currentColor 55%, transparent); }
   100% { box-shadow: 0 0 0 6px transparent; }
 }
+@keyframes scan { from { transform: translateY(-100%); } to { transform: translateY(100%); } }
+@keyframes blink { to { visibility: hidden; } }
+@keyframes grid-drift { from { background-position: 0 0, 0 0; } to { background-position: 64px 64px, 64px 64px; } }
+@keyframes sheet-in-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes sheet-in-left { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes accordion-down { from { height: 0; } to { height: var(--radix-accordion-content-height); } }
+@keyframes accordion-up { from { height: var(--radix-accordion-content-height); } to { height: 0; } }
 
 @layer base {
   * { border-color: var(--border); }
@@ -98,46 +103,103 @@
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
-    font-feature-settings: "ss01", "cv11";
+    font-feature-settings: "ss01", "cv11", "calt";
   }
-  ::selection { background: color-mix(in oklab, var(--primary) 22%, transparent); }
-  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+  ::selection { background: color-mix(in oklab, var(--primary) 28%, transparent); color: var(--foreground); }
+  :focus-visible { outline: 1.5px solid var(--ring); outline-offset: 2px; }
   input::placeholder, textarea::placeholder { color: var(--subtle-foreground); }
   .tabular { font-variant-numeric: tabular-nums; }
 }
 
 @layer components {
-  /* Hairline grid used on marketing hero / CTA blocks (inspired by "+" crosshair grids). */
+  /* Technical grid — fine 1px lines, faded at the edges. */
+  .bg-tech-grid {
+    background-image:
+      linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+  .bg-tech-grid-fade {
+    background-image:
+      linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(ellipse 75% 65% at 50% 35%, #000 35%, transparent 100%);
+  }
+  .bg-tech-grid-drift { animation: grid-drift 24s linear infinite; }
+  /* legacy name kept for existing markup */
   .bg-crosshair {
     background-image:
-      linear-gradient(to right, color-mix(in oklab, var(--border) 70%, transparent) 1px, transparent 1px),
-      linear-gradient(to bottom, color-mix(in oklab, var(--border) 70%, transparent) 1px, transparent 1px);
-    background-size: 88px 88px;
+      linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+    background-size: 64px 64px;
     mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 40%, transparent 100%);
   }
   .bg-dots {
-    background-image: radial-gradient(color-mix(in oklab, var(--foreground) 12%, transparent) 1px, transparent 1px);
+    background-image: radial-gradient(color-mix(in oklab, var(--foreground) 10%, transparent) 1px, transparent 1px);
     background-size: 18px 18px;
   }
+  /* Film-grain noise for large dark surfaces (very low opacity). */
+  .bg-noise {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+    opacity: 0.035;
+    mix-blend-mode: overlay;
+    pointer-events: none;
+  }
+  /* Soft radial light source, tinted by the signal colour. */
+  .bg-radial-signal {
+    background: radial-gradient(60% 50% at 70% 40%, color-mix(in oklab, var(--primary) 16%, transparent) 0%, transparent 70%);
+  }
   .text-gradient {
-    background: linear-gradient(100deg, var(--primary) 0%, var(--purple) 45%, var(--magenta) 100%);
+    background: linear-gradient(100deg, var(--foreground) 10%, var(--cyan) 55%, var(--ice) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
   }
+  .text-signal {
+    background: linear-gradient(100deg, var(--cyan), var(--ice));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  /* Uppercase technical micro-label. */
+  .micro-label {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--subtle-foreground);
+  }
+  /* Corner brackets on a positioned element — precision framing without heavy borders. */
+  .tech-corners { position: relative; }
+  .tech-corners::before, .tech-corners::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    pointer-events: none;
+    border-color: color-mix(in oklab, var(--primary) 70%, transparent);
+  }
+  .tech-corners::before { top: -1px; left: -1px; border-top: 1px solid; border-left: 1px solid; }
+  .tech-corners::after { bottom: -1px; right: -1px; border-bottom: 1px solid; border-right: 1px solid; }
+  .hairline-top { box-shadow: inset 0 1px 0 color-mix(in oklab, var(--foreground) 6%, transparent); }
   .skeleton {
-    background: linear-gradient(90deg, var(--muted) 0%, color-mix(in oklab, var(--muted) 50%, var(--card)) 50%, var(--muted) 100%);
+    background: linear-gradient(90deg, var(--muted) 0%, color-mix(in oklab, var(--muted) 40%, var(--card-elevated)) 50%, var(--muted) 100%);
     background-size: 200% 100%;
     animation: shimmer 1.6s linear infinite;
   }
   .scrollbar-thin { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
-  .card-hover { transition: box-shadow var(--duration-base) var(--ease-out), border-color var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out); }
-  .card-hover:hover { box-shadow: var(--shadow-md); border-color: var(--border-strong); }
+  .card-hover { transition: box-shadow var(--duration-base) var(--ease-out), border-color var(--duration-base) var(--ease-out), background-color var(--duration-base) var(--ease-out); }
+  .card-hover:hover { border-color: var(--border-strong); background-color: color-mix(in oklab, var(--card) 70%, var(--surface-hover)); }
+  .glow-signal { box-shadow: var(--glow); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
 
-@keyframes sheet-in-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
-@keyframes sheet-in-left { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+/* Intelligence core rotations (SVG groups; transform-origin set inline). */
+@keyframes rp-rotate { to { transform: rotate(360deg); } }
+@keyframes rp-rotate-rev { to { transform: rotate(-360deg); } }
+@keyframes rp-scanline { from { transform: translateY(-10%); } to { transform: translateY(110%); } }
+@keyframes rp-breathe { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }

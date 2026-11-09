@@ -13,7 +13,7 @@ export function Pagination({ page, pages, total, pageSize, onPage }: { page: num
       </span>
       <div className="flex items-center gap-1.5">
         <Button variant="outline" size="icon-sm" onClick={() => onPage(page - 1)} disabled={page <= 1} aria-label="Previous page"><ChevronLeft /></Button>
-        <span className="px-2 tabular">{page} / {pages}</span>
+        <span className="px-2 font-mono text-[11.5px] tabular">{String(page).padStart(2, "0")} / {String(pages).padStart(2, "0")}</span>
         <Button variant="outline" size="icon-sm" onClick={() => onPage(page + 1)} disabled={page >= pages} aria-label="Next page"><ChevronRight /></Button>
       </div>
     </div>

@@ -14,6 +14,7 @@ import { titleCase } from "@/lib/utils";
 import { CommandPalette } from "./command-palette";
 import { NotificationCenter } from "./notification-center";
 import { SidebarNav } from "./app-sidebar";
+import { Breadcrumbs } from "./breadcrumbs";
 
 function OrgSwitcher() {
   const { me, membership, switchOrg } = useOrg();
@@ -21,13 +22,13 @@ function OrgSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex h-9 min-w-0 max-w-[150px] items-center gap-2 sm:max-w-[220px] rounded-lg border border-border bg-card pl-1.5 pr-2 text-left shadow-xs transition hover:border-border-strong">
-          <span className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[linear-gradient(135deg,var(--primary),var(--blue))] text-[11px] font-bold text-white">
+        <button className="flex h-9 min-w-0 max-w-[150px] items-center gap-2 sm:max-w-[220px] rounded-lg border border-border bg-background-subtle pl-1.5 pr-2 text-left transition hover:border-border-strong">
+          <span className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-[5px] border border-[color-mix(in_oklab,var(--primary)_35%,transparent)] bg-primary-soft font-mono text-[11px] font-semibold text-primary">
             {org.logo_url ? <img src={org.logo_url} alt="" className="size-full object-cover" /> : org.name[0]}
           </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[13px] font-semibold leading-tight">{org.name}</span>
-            <span className="block truncate text-[10.5px] leading-tight text-muted-foreground">{titleCase(membership.role)}{org.plan_code ? ` · ${titleCase(org.plan_code)}` : ""}</span>
+            <span className="block truncate font-mono text-[9.5px] uppercase leading-tight tracking-[0.08em] text-subtle-foreground">{titleCase(membership.role)}{org.plan_code ? ` · ${titleCase(org.plan_code)}` : ""}</span>
           </span>
           <ChevronsUpDown className="size-3.5 shrink-0 text-subtle-foreground" />
         </button>
@@ -100,11 +101,13 @@ function UserMenu() {
 export function AppTopbar() {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 border-b border-border bg-background/75 backdrop-blur-xl">
       <div className="flex h-16 items-center gap-2 px-3 sm:gap-3 sm:px-6">
         <Button variant="ghost" size="icon-sm" className="lg:hidden" onClick={() => setMobileOpen(true)} aria-label="Open navigation"><Menu /></Button>
         <OrgSwitcher />
         <LocationFilter />
+        <span aria-hidden className="hidden h-5 w-px bg-border lg:block" />
+        <Breadcrumbs />
         <div className="flex min-w-0 flex-1 justify-end px-1 sm:justify-center sm:px-2"><CommandPalette /></div>
         <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
           <Button variant="ghost" size="icon-sm" asChild aria-label="Help" className="hidden sm:inline-flex"><Link href="/app/settings?tab=support"><CircleHelp /></Link></Button>

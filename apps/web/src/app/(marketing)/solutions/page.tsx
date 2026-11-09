@@ -30,41 +30,53 @@ export default function SolutionsPage() {
     <>
       <PageHero
         eyebrow="Solutions"
+        path="solutions"
+        meta="4 core industries · 6 more"
         title="Reputation tools shaped around your industry"
         description="The right moment to ask, the right words to reply and the right themes to watch — tuned for how your customers experience your business."
       />
-      <Section className="pt-4">
-        <div className="grid gap-5 md:grid-cols-2">
-          {SOLUTIONS.map((s) => {
+      <section className="relative px-5 pb-20 sm:px-8 sm:pb-28 lg:px-12">
+        <div className="mx-auto grid max-w-6xl gap-3 md:grid-cols-2">
+          {SOLUTIONS.map((s, i) => {
             const Icon = icons[s.slug];
             return (
-              <Link key={s.slug} href={`/solutions/${s.slug}`} className="group flex flex-col overflow-hidden rounded-[24px] border border-border bg-card shadow-sm card-hover">
-                <div className="p-6">
+              <Link key={s.slug} href={`/solutions/${s.slug}`} className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card/70 hairline-top card-hover">
+                <div className="p-6 sm:p-7">
                   <div className="flex items-center justify-between">
-                    <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft"><Icon className="size-5 text-primary-soft-foreground" /></span>
-                    <ArrowUpRight className="size-4 text-subtle-foreground transition group-hover:text-primary" />
+                    <span className="flex items-center gap-3">
+                      <span className="font-mono text-[10.5px] tracking-[0.12em] text-subtle-foreground">IND.{String(i + 1).padStart(2, "0")}</span>
+                      <span className="flex size-9 items-center justify-center rounded-md border border-border bg-background-subtle"><Icon className="size-4 text-primary" /></span>
+                    </span>
+                    <ArrowUpRight className="size-4 text-subtle-foreground transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-primary" />
                   </div>
-                  <h2 className="mt-4 text-[20px] font-semibold tracking-[-0.02em] text-foreground">{s.name}</h2>
-                  <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground">{s.short}</p>
+                  <h2 className="mt-6 text-[22px] font-semibold tracking-[-0.025em] text-foreground">{s.name}</h2>
+                  <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">{s.short}</p>
+                  <ul className="mt-5 flex flex-wrap gap-1.5">
+                    {s.checklist.slice(0, 3).map((c) => (
+                      <li key={c} className="rounded-[4px] border border-border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">{c}</li>
+                    ))}
+                  </ul>
                 </div>
-                <div className="mt-auto border-t border-border bg-background-subtle/60 p-5">
-                  <ReviewCard author={s.review.author} rating={s.review.rating} text={s.review.text} className="shadow-none" />
+                <div className="relative mt-auto border-t border-border bg-background-subtle/60 p-5">
+                  <span className="absolute right-5 top-3 font-mono text-[9.5px] uppercase tracking-[0.12em] text-amber">Sample review</span>
+                  <ReviewCard author={s.review.author} rating={s.review.rating} text={s.review.text} className="mt-4 bg-card shadow-none" />
                 </div>
               </Link>
             );
           })}
         </div>
-      </Section>
-      <Section id="more" className="scroll-mt-24 bg-background-subtle/40">
-        <SectionHeading eyebrow="And more" title="Any business that lives on word of mouth" />
-        <div className="mt-12 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-          {more.map((m) => (
-            <div key={m.name} className="flex gap-4">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-card"><m.icon className="size-4 text-primary" /></span>
-              <div>
-                <h3 className="text-[15px] font-semibold text-foreground">{m.name}</h3>
-                <p className="mt-1 text-[13.5px] leading-relaxed text-muted-foreground">{m.body}</p>
+      </section>
+      <Section id="more">
+        <SectionHeading eyebrow="And more" title="Any business that lives on word of mouth" description="The same honest loop — ask everyone, reply with care, learn from every theme — works wherever reputation drives the next customer." />
+        <div className="mt-12 grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
+          {more.map((m, i) => (
+            <div key={m.name} className="bg-[color-mix(in_oklab,var(--card)_92%,var(--background))] p-6 transition-colors hover:bg-card">
+              <div className="flex items-center justify-between">
+                <span className="flex size-9 items-center justify-center rounded-md border border-border bg-background-subtle"><m.icon className="size-4 text-primary" /></span>
+                <span className="font-mono text-[10px] tracking-[0.12em] text-subtle-foreground">IND.{String(i + 5).padStart(2, "0")}</span>
               </div>
+              <h3 className="mt-5 text-[15.5px] font-semibold text-foreground">{m.name}</h3>
+              <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted-foreground">{m.body}</p>
             </div>
           ))}
         </div>

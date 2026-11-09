@@ -17,13 +17,13 @@ export function GoogleButton({ next, label = "Continue with Google" }: { next?: 
   const enabled = !!data?.google;
   const href = `/api/v1/auth/google/start${next ? `?next=${encodeURIComponent(next)}` : ""}`;
   const cls =
-    "relative flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-border-strong bg-card text-[14px] font-medium text-foreground shadow-xs transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+    "relative flex h-11 w-full items-center justify-center gap-3 rounded-lg border border-border-strong bg-card/70 text-[14px] font-medium text-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.04)] transition-[background-color,border-color] duration-200 hover:border-[color-mix(in_oklab,var(--primary)_40%,var(--border-strong))] hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-[1.5px] focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
   const content = (
     <>
       <GoogleIcon className="size-[18px]" />
       {label}
       {data?.google_mock && (
-        <span className="absolute right-3 rounded-md bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-warning-foreground">Dev mock</span>
+        <span className="absolute right-3 rounded-[4px] border border-[color-mix(in_oklab,var(--amber)_30%,transparent)] bg-amber-soft px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-[0.12em] text-amber">Dev mock</span>
       )}
     </>
   );
@@ -36,7 +36,7 @@ export function GoogleButton({ next, label = "Continue with Google" }: { next?: 
   }
   return (
     <Tooltip content="Google Sign-In isn't configured on this server yet">
-      <span tabIndex={0} className={cn(cls, "cursor-not-allowed opacity-55 hover:bg-card")} aria-disabled="true" role="button">
+      <span tabIndex={0} className={cn(cls, "cursor-not-allowed opacity-55 hover:border-border-strong hover:bg-card/70")} aria-disabled="true" role="button">
         {content}
       </span>
     </Tooltip>
@@ -45,10 +45,10 @@ export function GoogleButton({ next, label = "Continue with Google" }: { next?: 
 
 export function OrDivider({ label = "or continue with email" }: { label?: string }) {
   return (
-    <div className="relative my-6 flex items-center gap-3 text-[11.5px] uppercase tracking-[0.12em] text-subtle-foreground">
-      <span className="h-px flex-1 bg-border" />
+    <div className="relative my-6 flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.16em] text-subtle-foreground">
+      <span className="h-px flex-1 bg-[linear-gradient(90deg,transparent,var(--border-strong))]" />
       {label}
-      <span className="h-px flex-1 bg-border" />
+      <span className="h-px flex-1 bg-[linear-gradient(90deg,var(--border-strong),transparent)]" />
     </div>
   );
 }

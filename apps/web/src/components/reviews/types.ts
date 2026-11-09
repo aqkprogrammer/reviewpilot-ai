@@ -1,3 +1,5 @@
+import type { BadgeProps } from "@/components/ui/badge";
+
 export interface Review {
   id: string;
   location_id: string;
@@ -69,9 +71,19 @@ export const TOPIC_LABELS: Record<string, string> = {
   wait_time: "Wait time", staff: "Staff", cleanliness: "Cleanliness", quality: "Quality", price: "Price & value", ambience: "Ambience", booking: "Booking", parking: "Parking",
 };
 
-export const SENTIMENT_STYLE: Record<string, string> = {
-  positive: "bg-success-soft text-success-foreground",
-  negative: "bg-danger-soft text-danger-foreground",
-  mixed: "bg-warning-soft text-warning-foreground",
-  neutral: "bg-blue-soft text-blue",
+/** Sentiment → Badge variant (token driven). */
+export const SENTIMENT_VARIANT: Record<string, BadgeProps["variant"]> = {
+  positive: "success",
+  negative: "danger",
+  mixed: "warning",
+  neutral: "info",
 };
+
+/** Rating → tone classes for the left rail / rating cell. */
+export function ratingTone(rating: number) {
+  return rating >= 4
+    ? { rail: "bg-success/70", quote: "before:bg-success/70", text: "text-success-foreground", soft: "bg-success-soft" }
+    : rating === 3
+      ? { rail: "bg-amber/80", quote: "before:bg-amber/80", text: "text-amber", soft: "bg-amber-soft" }
+      : { rail: "bg-danger", quote: "before:bg-danger", text: "text-danger-foreground", soft: "bg-danger-soft" };
+}

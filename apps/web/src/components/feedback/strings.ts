@@ -29,6 +29,10 @@ export const STRINGS = {
     notFoundBody: "The link may be out of date, or the business has paused its page.",
     callUs: "Call",
     website: "Website",
+    feedbackLabel: "Feedback",
+    optionPublic: "Option A · Public review",
+    optionPrivate: "Option B · Private feedback",
+    or: "or",
   },
   hi: {
     rateOptional: "आपका अनुभव कैसा रहा? (वैकल्पिक)",
@@ -58,5 +62,9 @@ export const STRINGS = {
     notFoundBody: "लिंक पुराना हो सकता है, या व्यवसाय ने अपना पेज रोक दिया है।",
     callUs: "कॉल करें",
     website: "वेबसाइट",
+    feedbackLabel: "फ़ीडबैक",
+    optionPublic: "विकल्प A · सार्वजनिक समीक्षा",
+    optionPrivate: "विकल्प B · निजी प्रतिक्रिया",
+    or: "या",
   },
 } as const;

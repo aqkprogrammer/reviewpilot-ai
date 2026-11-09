@@ -18,10 +18,10 @@ export function DialogContent({
   const widths = { sm: "max-w-sm", md: "max-w-lg", lg: "max-w-2xl", xl: "max-w-4xl" };
   return (
     <D.Portal>
-      <D.Overlay className="fixed inset-0 z-50 bg-[rgb(10_8_25/0.45)] backdrop-blur-[2px] data-[state=open]:animate-[fade-up_0.2s_ease-out]" />
+      <D.Overlay className="fixed inset-0 z-50 bg-[rgb(2_5_8/0.72)] backdrop-blur-[3px] data-[state=open]:animate-[fade-up_0.2s_ease-out]" />
       <D.Content
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-border bg-popover p-6 text-foreground shadow-lg outline-none scrollbar-thin data-[state=open]:animate-[fade-up_0.25s_var(--ease-out)]",
+          "fixed left-1/2 top-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-border-strong bg-popover p-6 hairline-top text-foreground shadow-lg outline-none scrollbar-thin data-[state=open]:animate-[fade-up_0.25s_var(--ease-out)]",
           widths[size],
           className,
         )}
@@ -46,7 +46,7 @@ export function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLD
   return <div className={cn("mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)} {...props} />;
 }
 export function DialogTitle({ className, ...props }: React.ComponentPropsWithoutRef<typeof D.Title>) {
-  return <D.Title className={cn("text-lg font-semibold tracking-tight", className)} {...props} />;
+  return <D.Title className={cn("text-[17px] font-semibold tracking-[-0.015em]", className)} {...props} />;
 }
 export function DialogDescription({ className, ...props }: React.ComponentPropsWithoutRef<typeof D.Description>) {
   return <D.Description className={cn("text-sm text-muted-foreground", className)} {...props} />;

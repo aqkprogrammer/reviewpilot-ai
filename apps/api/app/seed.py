@@ -223,7 +223,7 @@ async def seed_demo(db: AsyncSession) -> dict:
         org = Organization(
             name=spec["name"], slug=slug, industry=spec["industry"], country="IN", timezone="Asia/Kolkata", is_demo=True,
             description=f"{spec['name']} — sample organization for demonstration.", website=f"https://{slug}.example.com", phone="+919800000000",
-            email=org_owner.email, onboarding_step=8, onboarding_completed_at=created_at + timedelta(hours=1), brand_color="#6a4cff", created_at=created_at,
+            email=org_owner.email, onboarding_step=8, onboarding_completed_at=created_at + timedelta(hours=1), brand_color="#0e9aa7", created_at=created_at,
             status="suspended" if spec["name"] == "Northstar Realty" else "active", suspended_reason="Demo: suspended for unpaid invoices" if spec["name"] == "Northstar Realty" else None,
         )
         db.add(org)

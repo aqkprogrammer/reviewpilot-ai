@@ -57,22 +57,22 @@ def render_pdf(qr: QRCode, *, business: str, location: str, brand_color: str, lo
     w, h = A6
     c = canvas.Canvas(buf, pagesize=A6)
     c.setTitle(f"{business} — feedback QR")
-    accent = HexColor(brand_color if brand_color.startswith("#") else "#6a4cff")
-    dark = HexColor("#16112b")
+    accent = HexColor(brand_color if brand_color.startswith("#") else "#0e9aa7")
+    dark = HexColor("#0b1218")
     if qr.template == "bold":
         c.setFillColor(accent)
         c.rect(0, 0, w, h, stroke=0, fill=1)
         c.setFillColor(HexColor("#ffffff"))
         c.roundRect(18, 70, w - 36, h - 150, 14, stroke=0, fill=1)
-        text_color, sub_color = HexColor("#ffffff"), HexColor("#efeaff")
+        text_color, sub_color = HexColor("#ffffff"), HexColor("#d9f6f7")
     else:
         c.setFillColor(HexColor("#ffffff"))
         c.rect(0, 0, w, h, stroke=0, fill=1)
         c.setFillColor(accent)
         c.rect(0, h - 6, w, 6, stroke=0, fill=1)
-        text_color, sub_color = dark, HexColor("#6e6a86")
+        text_color, sub_color = dark, HexColor("#52616c")
         if qr.template == "classic":
-            c.setStrokeColor(HexColor("#e9e7f3"))
+            c.setStrokeColor(HexColor("#dde5e9"))
             c.roundRect(12, 12, w - 24, h - 24, 12, stroke=1, fill=0)
     headline = qr.card_headline or "How was your visit?"
     sub = qr.card_subtext or "Scan to share honest feedback"

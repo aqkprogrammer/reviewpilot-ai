@@ -58,19 +58,19 @@ export function CommandPalette() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="group hidden h-9 w-full max-w-sm items-center gap-2.5 rounded-lg border border-border bg-background-subtle px-3 text-[13px] text-subtle-foreground transition hover:border-border-strong hover:bg-card md:flex"
+        className="group hidden h-9 w-full max-w-sm items-center gap-2.5 rounded-lg border border-border bg-background-subtle px-3 text-[13px] text-subtle-foreground transition hover:border-border-strong hover:text-muted-foreground md:flex"
       >
         <Search className="size-4" />
         <span className="flex-1 text-left">Search reviews, customers, pages…</span>
-        <kbd className="rounded border border-border bg-card px-1.5 py-0.5 font-mono text-[10.5px] text-muted-foreground">⌘K</kbd>
+        <kbd className="rounded-[4px] border border-border-strong bg-card px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">⌘K</kbd>
       </button>
       <button onClick={() => setOpen(true)} className="flex size-8 items-center justify-center rounded-lg text-foreground-soft hover:bg-muted md:hidden" aria-label="Search">
         <Search className="size-4" />
       </button>
       <D.Root open={open} onOpenChange={setOpen}>
         <D.Portal>
-          <D.Overlay className="fixed inset-0 z-50 bg-[rgb(10_8_25/0.4)] backdrop-blur-[2px]" />
-          <D.Content className="fixed left-1/2 top-[12vh] z-50 w-[calc(100vw-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-2xl border border-border bg-popover shadow-lg data-[state=open]:animate-[fade-up_0.18s_ease-out]">
+          <D.Overlay className="fixed inset-0 z-50 bg-[rgb(2_5_8/0.72)] backdrop-blur-[3px]" />
+          <D.Content className="fixed left-1/2 top-[12vh] z-50 w-[calc(100vw-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-xl border border-border-strong bg-popover shadow-lg hairline-top data-[state=open]:animate-[fade-up_0.18s_ease-out]">
             <D.Title className="sr-only">Search</D.Title>
             <Command shouldFilter={false} className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pb-1.5 [&_[cmdk-group-heading]]:pt-3 [&_[cmdk-group-heading]]:text-[10.5px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.1em] [&_[cmdk-group-heading]]:text-subtle-foreground">
               <div className="flex items-center gap-3 border-b border-border px-4">
@@ -109,7 +109,7 @@ export function CommandPalette() {
 
 function Item({ icon: Icon, title, sub, onSelect }: { icon: React.ComponentType<{ className?: string }>; title: string; sub?: string; onSelect: () => void }) {
   return (
-    <Command.Item onSelect={onSelect} className="group flex cursor-default items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] data-[selected=true]:bg-muted">
+    <Command.Item onSelect={onSelect} className="group flex cursor-default items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] data-[selected=true]:bg-surface-hover">
       <span className="flex size-7 items-center justify-center rounded-md border border-border bg-card"><Icon className="size-3.5 text-muted-foreground" /></span>
       <span className="min-w-0 flex-1">
         <span className="block truncate font-medium text-foreground">{title}</span>

@@ -25,7 +25,7 @@ class Organization(UUIDPk, Timestamps, SoftDelete, Base):
     address: Mapped[str | None] = mapped_column(Text)
     timezone: Mapped[str] = mapped_column(String(64), default="Asia/Kolkata", nullable=False)
     logo_url: Mapped[str | None] = mapped_column(String(1024))
-    brand_color: Mapped[str] = mapped_column(String(9), default="#6a4cff", nullable=False)
+    brand_color: Mapped[str] = mapped_column(String(9), default="#0e9aa7", nullable=False)
     brand_tone: Mapped[str] = mapped_column(String(32), default="professional", nullable=False)
     default_language: Mapped[str] = mapped_column(String(12), default="en", nullable=False)
     status: Mapped[str] = mapped_column(String(16), default=OrgStatus.ACTIVE, nullable=False, index=True)

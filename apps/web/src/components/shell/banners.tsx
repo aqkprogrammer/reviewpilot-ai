@@ -32,8 +32,8 @@ export function ShellBanners() {
   return (
     <div className="space-y-px">
       {(me.demo_mode || org.is_demo) && (
-        <div className="flex items-center justify-center gap-2 bg-[linear-gradient(90deg,var(--purple),var(--primary))] px-4 py-1.5 text-center text-[12px] font-medium text-white">
-          <FlaskConical className="size-3.5" />
+        <div className="flex items-center justify-center gap-2.5 border-b border-[color-mix(in_oklab,var(--amber)_22%,transparent)] bg-[color-mix(in_oklab,var(--amber)_7%,var(--background))] px-4 py-1.5 text-center text-[12px] text-foreground-soft">
+          <span className="inline-flex items-center gap-1 rounded-[4px] border border-[color-mix(in_oklab,var(--amber)_40%,transparent)] px-1.5 font-mono text-[10px] tracking-[0.12em] text-amber"><FlaskConical className="size-3" />DEMO</span>
           {org.is_demo ? "Demo organization — reviews, customers and payments shown are sample data, not real records." : "Demo mode — integrations without credentials are simulated and clearly labelled."}
         </div>
       )}
@@ -57,7 +57,7 @@ export function ShellBanners() {
 
 function Bar({ tone, icon: Icon, children, onDismiss }: { tone: "danger" | "warning" | "info"; icon: React.ComponentType<{ className?: string }>; children: React.ReactNode; onDismiss?: () => void }) {
   return (
-    <div className={cn("flex items-center gap-2.5 px-4 py-2 text-[12.5px] sm:px-6", tone === "danger" && "bg-danger-soft text-danger-foreground", tone === "warning" && "bg-warning-soft text-warning-foreground", tone === "info" && "bg-blue-soft text-blue")}>
+    <div className={cn("flex items-center gap-2.5 border-b px-4 py-2 text-[12.5px] sm:px-6", tone === "danger" && "border-[color-mix(in_oklab,var(--danger)_25%,transparent)] bg-danger-soft text-danger-foreground", tone === "warning" && "border-[color-mix(in_oklab,var(--warning)_25%,transparent)] bg-warning-soft text-warning-foreground", tone === "info" && "border-[color-mix(in_oklab,var(--ice)_22%,transparent)] bg-ice-soft text-ice")}>
       <Icon className="size-4 shrink-0" />
       <div className="flex-1">{children}</div>
       {onDismiss && <button onClick={onDismiss} className="rounded p-0.5 opacity-70 hover:opacity-100" aria-label="Dismiss"><X className="size-3.5" /></button>}

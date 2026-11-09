@@ -1,10 +1,19 @@
 "use client";
 import * as React from "react";
-import { TriangleAlert } from "lucide-react";
+import { ScrollText, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input, Textarea } from "@/components/ui/input";
 import { FormField } from "@/components/ui/form-field";
+import { cn } from "@/lib/utils";
+
+function Glyph({ destructive }: { destructive?: boolean }) {
+  return (
+    <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg border", destructive ? "border-[color-mix(in_oklab,var(--danger)_30%,transparent)] bg-danger-soft text-danger-foreground" : "border-[color-mix(in_oklab,var(--primary)_30%,transparent)] bg-primary-soft text-primary")}>
+      {destructive ? <TriangleAlert className="size-4" /> : <ScrollText className="size-4" />}
+    </span>
+  );
+}
 
 /** Confirmation that captures an audit reason (and optionally a typed confirmation string). */
 export function ReasonDialog({ open, onOpenChange, title, description, confirmLabel, destructive, confirmText, loading, onConfirm, children }: {
@@ -17,11 +26,12 @@ export function ReasonDialog({ open, onOpenChange, title, description, confirmLa
   const valid = reason.trim().length >= 4 && (!confirmText || typed === confirmText);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="sm">
+      <DialogContent size="sm" className="max-w-md">
         <DialogHeader>
           <div className="flex items-start gap-3">
-            {destructive && <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-danger-soft text-danger-foreground"><TriangleAlert className="size-4" /></span>}
-            <div className="space-y-1.5">
+            <Glyph destructive={destructive} />
+            <div className="min-w-0 space-y-1">
+              <p className="micro-label">Audited action</p>
               <DialogTitle className="text-base">{title}</DialogTitle>
               <DialogDescription>{description}</DialogDescription>
             </div>
@@ -34,7 +44,7 @@ export function ReasonDialog({ open, onOpenChange, title, description, confirmLa
           </FormField>
           {confirmText && (
             <FormField label={`Type ${confirmText} to confirm`} htmlFor="confirm-text">
-              <Input id="confirm-text" value={typed} onChange={(e) => setTyped(e.target.value)} className="font-mono" autoComplete="off" />
+              <Input id="confirm-text" value={typed} onChange={(e) => setTyped(e.target.value)} className="font-mono" autoComplete="off" placeholder={confirmText} />
             </FormField>
           )}
           <DialogFooter>
@@ -54,11 +64,15 @@ export function ControlledConfirm({ open, onOpenChange, title, description, conf
   const [busy, setBusy] = React.useState(false);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="sm">
+      <DialogContent size="sm" className="max-w-md">
         <DialogHeader>
           <div className="flex items-start gap-3">
-            {destructive && <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-danger-soft text-danger-foreground"><TriangleAlert className="size-4" /></span>}
-            <div className="space-y-1.5"><DialogTitle className="text-base">{title}</DialogTitle><DialogDescription>{description}</DialogDescription></div>
+            <Glyph destructive={destructive} />
+            <div className="min-w-0 space-y-1">
+              <p className="micro-label">Confirm · audited</p>
+              <DialogTitle className="text-base">{title}</DialogTitle>
+              <DialogDescription>{description}</DialogDescription>
+            </div>
           </div>
         </DialogHeader>
         <DialogFooter>

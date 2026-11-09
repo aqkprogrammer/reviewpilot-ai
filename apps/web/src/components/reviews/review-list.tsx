@@ -1,8 +1,8 @@
 "use client";
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
-import { ArrowDownUp, Filter, Flag, MessageSquareReply, MessageSquareText, Search, Star, X } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
+import { ArrowDownUp, CornerDownLeft, Flag, MessageSquareText, Search, SlidersHorizontal, Star, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -11,12 +11,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/control
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/states";
 import { Stars } from "@/components/ui/stars";
+import { AnimatedNumber, SegmentMeter, StatusDot } from "@/components/ui/tech";
 import { Pagination } from "@/components/app/pagination";
 import { StatusBadge } from "@/components/app/status-badge";
+import { MonoTime, Segmented } from "@/components/dashboard/kit";
 import { api, errorMessage } from "@/lib/api";
 import { useOrg } from "@/lib/session";
 import { cn, formatNumber, titleCase } from "@/lib/utils";
-import { SENTIMENT_STYLE, TOPIC_LABELS, type Review } from "./types";
+import { SENTIMENT_VARIANT, TOPIC_LABELS, ratingTone, type Review } from "./types";
 
 export interface ReviewFilters {
   q: string;
@@ -40,36 +42,44 @@ function useDebounced<T>(v: T, ms = 300) {
   return d;
 }
 
+interface Stats { total: number; average_rating: number | null; pending: number; responded: number; negative_pending: number }
+
 export function ReviewStatsStrip() {
   const { orgId, locationId } = useOrg();
   const q = useQuery({
     queryKey: ["reviews", "stats", orgId, locationId],
-    queryFn: () => api.get<{ total: number; average_rating: number | null; pending: number; responded: number; negative_pending: number }>("/reviews/stats", { location_id: locationId }),
+    queryFn: () => api.get<Stats>("/reviews/stats", { location_id: locationId }),
   });
   const s = q.data;
-  const tiles = [
-    { label: "Total reviews", value: formatNumber(s?.total), tone: "text-foreground" },
-    { label: "Average rating", value: s?.average_rating?.toFixed(2) ?? "—", tone: "text-foreground", star: true },
-    { label: "Awaiting reply", value: formatNumber(s?.pending), tone: "text-warning-foreground" },
-    { label: "Negative, unanswered", value: formatNumber(s?.negative_pending), tone: s?.negative_pending ? "text-danger-foreground" : "text-foreground" },
-    { label: "Responded", value: formatNumber(s?.responded), tone: "text-success-foreground" },
+  const coverage = s && s.total ? s.responded / s.total : 0;
+  const int = (n: number) => formatNumber(Math.round(n));
+  const cells: { label: string; node: React.ReactNode; sub?: React.ReactNode; tone?: string }[] = [
+    { label: "Total reviews", node: <AnimatedNumber value={s?.total} format={int} />, sub: "All sources" },
+    {
+      label: "Average rating",
+      node: <span className="inline-flex items-center gap-1.5"><AnimatedNumber value={s?.average_rating} format={(n) => n.toFixed(2)} /><Star className="size-4 fill-amber text-amber" aria-hidden /></span>,
+      sub: s?.average_rating != null ? <Stars rating={s.average_rating} size={10} /> : "—",
+    },
+    { label: "Awaiting reply", node: <AnimatedNumber value={s?.pending} format={int} />, tone: s?.pending ? "text-warning-foreground" : undefined, sub: <span className="inline-flex items-center gap-1.5"><StatusDot tone={s?.pending ? "warn" : "ok"} /> {s?.pending ? "Queue open" : "Inbox zero"}</span> },
+    { label: "Negative · unanswered", node: <AnimatedNumber value={s?.negative_pending} format={int} />, tone: s?.negative_pending ? "text-danger-foreground" : undefined, sub: <span className="inline-flex items-center gap-1.5"><StatusDot tone={s?.negative_pending ? "error" : "ok"} pulse={!!s?.negative_pending} /> {s?.negative_pending ? "Needs attention" : "Clear"}</span> },
+    { label: "Response coverage", node: <AnimatedNumber value={coverage * 100} format={(n) => `${n.toFixed(0)}%`} />, sub: <SegmentMeter value={coverage * 100} segments={14} tone={coverage >= 0.7 ? "success" : coverage >= 0.4 ? "warning" : "danger"} /> },
   ];
   return (
-    <Card className="grid grid-cols-2 divide-border sm:grid-cols-3 lg:grid-cols-5 lg:divide-x">
-      {tiles.map((t) => (
-        <div key={t.label} className="px-5 py-4">
-          <p className="text-[12px] text-muted-foreground">{t.label}</p>
+    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border shadow-sm sm:grid-cols-3 lg:grid-cols-5">
+      {cells.map((c, i) => (
+        <div key={c.label} className={cn("bg-card px-5 py-4", i === 4 && "col-span-2 lg:col-span-1")}>
+          <p className="micro-label">{c.label}</p>
           {s ? (
-            <p className={cn("mt-1 flex items-center gap-1 text-xl font-semibold tabular tracking-tight", t.tone)}>
-              {t.value}
-              {t.star && <Star className="size-4 fill-[#f5a524] text-[#f5a524]" />}
-            </p>
+            <>
+              <p className={cn("mt-2 text-[24px] font-semibold leading-none tracking-[-0.035em] tabular text-foreground", c.tone)}>{c.node}</p>
+              <div className="mt-2 font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">{c.sub}</div>
+            </>
           ) : (
-            <Skeleton className="mt-2 h-6 w-16" />
+            <Skeleton className="mt-2 h-7 w-16" />
           )}
         </div>
       ))}
-    </Card>
+    </div>
   );
 }
 
@@ -79,23 +89,24 @@ function FiltersPopover({ value, onChange }: { value: ReviewFilters; onChange: (
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="md">
-          <Filter /> Filters
-          {active > 0 && <span className="rounded-full bg-primary px-1.5 text-[10.5px] font-semibold text-primary-foreground">{active}</span>}
+        <Button variant="outline" size="md" className={cn(active > 0 && "border-[color-mix(in_oklab,var(--primary)_45%,var(--border-strong))]")}>
+          <SlidersHorizontal /> Filters
+          {active > 0 && <span className="rounded-[4px] bg-primary px-1.5 font-mono text-[10.5px] font-semibold text-primary-foreground">{active}</span>}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 space-y-4 p-4">
+      <PopoverContent align="end" className="w-[min(320px,calc(100vw-2rem))] space-y-4 p-4">
+        <p className="micro-label">Filter parameters</p>
         <div>
           <p className="mb-2 text-xs font-medium text-muted-foreground">Rating</p>
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5" role="group" aria-label="Rating">
             {[5, 4, 3, 2, 1].map((r) => (
               <button
                 key={r}
                 onClick={() => toggleRating(r)}
                 aria-pressed={value.rating.includes(r)}
-                className={cn("flex h-8 flex-1 items-center justify-center gap-1 rounded-lg border text-[13px] font-medium transition", value.rating.includes(r) ? "border-primary bg-primary-soft text-primary-soft-foreground" : "border-border hover:bg-muted")}
+                className={cn("flex h-8 flex-1 items-center justify-center gap-1 rounded-md border font-mono text-[12px] transition", value.rating.includes(r) ? "border-[color-mix(in_oklab,var(--primary)_55%,transparent)] bg-primary-soft text-primary-soft-foreground" : "border-border text-foreground-soft hover:bg-surface-hover")}
               >
-                {r}<Star className="size-3 fill-[#f5a524] text-[#f5a524]" />
+                {r}<Star className="size-3 fill-amber text-amber" />
               </button>
             ))}
           </div>
@@ -104,7 +115,7 @@ function FiltersPopover({ value, onChange }: { value: ReviewFilters; onChange: (
           <div>
             <p className="mb-1.5 text-xs font-medium text-muted-foreground">Sentiment</p>
             <Select value={value.sentiment || "all"} onValueChange={(v) => onChange({ ...value, sentiment: v === "all" ? "" : v })}>
-              <SelectTrigger size="sm"><SelectValue /></SelectTrigger>
+              <SelectTrigger size="sm" aria-label="Sentiment"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Any</SelectItem>
                 {["positive", "neutral", "mixed", "negative"].map((s) => <SelectItem key={s} value={s}>{titleCase(s)}</SelectItem>)}
@@ -114,7 +125,7 @@ function FiltersPopover({ value, onChange }: { value: ReviewFilters; onChange: (
           <div>
             <p className="mb-1.5 text-xs font-medium text-muted-foreground">Source</p>
             <Select value={value.source || "all"} onValueChange={(v) => onChange({ ...value, source: v === "all" ? "" : v })}>
-              <SelectTrigger size="sm"><SelectValue /></SelectTrigger>
+              <SelectTrigger size="sm" aria-label="Source"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Any</SelectItem>
                 <SelectItem value="google">Google</SelectItem>
@@ -138,9 +149,29 @@ function FiltersPopover({ value, onChange }: { value: ReviewFilters; onChange: (
   );
 }
 
-const STATUS_TABS = [
+function ActiveChips({ value, onChange }: { value: ReviewFilters; onChange: (f: ReviewFilters) => void }) {
+  const chips: { key: string; label: string; clear: () => void }[] = [];
+  value.rating.forEach((r) => chips.push({ key: `r${r}`, label: `${r}★`, clear: () => onChange({ ...value, rating: value.rating.filter((x) => x !== r) }) }));
+  if (value.sentiment) chips.push({ key: "s", label: value.sentiment, clear: () => onChange({ ...value, sentiment: "" }) });
+  if (value.source) chips.push({ key: "src", label: value.source === "demo" ? "Demo data" : "Google", clear: () => onChange({ ...value, source: "" }) });
+  if (value.date_from) chips.push({ key: "df", label: `From ${value.date_from}`, clear: () => onChange({ ...value, date_from: "" }) });
+  if (value.date_to) chips.push({ key: "dt", label: `To ${value.date_to}`, clear: () => onChange({ ...value, date_to: "" }) });
+  if (!chips.length) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 border-b border-border bg-background-subtle/40 px-4 py-2">
+      <span className="micro-label mr-1">Active</span>
+      {chips.map((c) => (
+        <button key={c.key} onClick={c.clear} className="inline-flex h-6 items-center gap-1 rounded-[5px] border border-[color-mix(in_oklab,var(--primary)_30%,transparent)] bg-primary-soft px-2 font-mono text-[10.5px] uppercase tracking-[0.06em] text-primary-soft-foreground transition hover:border-primary" aria-label={`Remove filter ${c.label}`}>
+          {c.label}<X className="size-3" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const STATUS_OPTIONS = [
   { value: "", label: "All" },
-  { value: "pending", label: "Awaiting reply" },
+  { value: "pending", label: "Awaiting" },
   { value: "responded", label: "Responded" },
   { value: "handled", label: "Handled" },
 ];
@@ -166,27 +197,15 @@ export function ReviewList({ filters, setFilters, onOpen }: { filters: ReviewFil
 
   return (
     <Card className="overflow-hidden">
-      <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center">
-        <div className="flex gap-1 overflow-x-auto scrollbar-thin" role="tablist" aria-label="Response status">
-          {STATUS_TABS.map((t) => (
-            <button
-              key={t.value}
-              role="tab"
-              aria-selected={filters.status === t.value}
-              onClick={() => setFilters({ ...filters, status: t.value })}
-              className={cn("h-8 whitespace-nowrap rounded-lg px-3 text-[13px] font-medium transition", filters.status === t.value ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted hover:text-foreground")}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-1 flex-wrap items-center gap-2 lg:justify-end">
-          <div className="min-w-[200px] flex-1 lg:max-w-xs">
+      <div className="flex flex-col gap-3 border-b border-border p-3 sm:p-4 xl:flex-row xl:items-center">
+        <Segmented id="review-status" ariaLabel="Response status" value={filters.status} onChange={(v) => setFilters({ ...filters, status: v })} options={STATUS_OPTIONS} />
+        <div className="flex flex-1 flex-wrap items-center gap-2 xl:justify-end">
+          <div className="min-w-[180px] flex-1 xl:max-w-xs">
             <Input leading={<Search />} placeholder="Search text or reviewer" value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} aria-label="Search reviews" />
           </div>
           <FiltersPopover value={filters} onChange={setFilters} />
           <Select value={filters.sort} onValueChange={(v) => setFilters({ ...filters, sort: v })}>
-            <SelectTrigger className="w-[150px]" aria-label="Sort"><span className="flex items-center gap-2"><ArrowDownUp className="size-3.5 text-muted-foreground" /><SelectValue /></span></SelectTrigger>
+            <SelectTrigger className="w-[156px]" aria-label="Sort"><span className="flex items-center gap-2"><ArrowDownUp className="size-3.5 text-muted-foreground" /><SelectValue /></span></SelectTrigger>
             <SelectContent>
               <SelectItem value="newest">Newest</SelectItem>
               <SelectItem value="oldest">Oldest</SelectItem>
@@ -196,13 +215,21 @@ export function ReviewList({ filters, setFilters, onOpen }: { filters: ReviewFil
           </Select>
         </div>
       </div>
+      <ActiveChips value={filters} onChange={setFilters} />
+
+      <div className="hidden grid-cols-[3px_64px_minmax(0,1fr)_130px] gap-4 border-b border-border bg-background-subtle/60 px-5 py-2 md:grid">
+        <span />
+        <span className="micro-label !text-[10px]">Rating</span>
+        <span className="micro-label !text-[10px]">Review</span>
+        <span className="micro-label !text-[10px] text-right">Status</span>
+      </div>
 
       {list.isError ? (
         <ErrorState message={errorMessage(list.error)} onRetry={() => list.refetch()} />
       ) : list.isLoading ? (
         <div className="divide-y divide-border">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex gap-4 p-5"><Skeleton className="size-9 rounded-full" /><div className="flex-1 space-y-2"><Skeleton className="h-4 w-48" /><Skeleton className="h-4 w-full" /><Skeleton className="h-3 w-32" /></div></div>
+            <div key={i} className="flex gap-4 p-5"><Skeleton className="h-10 w-14" /><div className="flex-1 space-y-2"><Skeleton className="h-4 w-48" /><Skeleton className="h-4 w-full" /><Skeleton className="h-3 w-32" /></div></div>
           ))}
         </div>
       ) : !list.data?.items.length ? (
@@ -214,38 +241,48 @@ export function ReviewList({ filters, setFilters, onOpen }: { filters: ReviewFil
         />
       ) : (
         <ul className={cn("divide-y divide-border transition-opacity", list.isFetching && "opacity-70")}>
-          {list.data.items.map((r) => (
-            <li key={r.id}>
-              <button onClick={() => onOpen(r.id)} className="group flex w-full gap-4 px-5 py-4 text-left transition hover:bg-muted/40 focus-visible:bg-muted/50 focus-visible:outline-none">
-                <div className={cn("mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold tabular", r.rating >= 4 ? "bg-success-soft text-success-foreground" : r.rating === 3 ? "bg-warning-soft text-warning-foreground" : "bg-danger-soft text-danger-foreground")}>
-                  {r.rating}.0
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                    <span className="text-[13.5px] font-semibold">{r.reviewer_name ?? "Anonymous"}</span>
-                    <Stars rating={r.rating} size={12} />
-                    <span className="text-[12px] text-subtle-foreground">{formatDistanceToNow(new Date(r.review_created_at), { addSuffix: true })}</span>
-                    {r.is_flagged && <Flag className="size-3.5 text-danger" aria-label="Flagged" />}
+          {list.data.items.map((r) => {
+            const tone = ratingTone(r.rating);
+            const d = new Date(r.review_created_at);
+            return (
+              <li key={r.id}>
+                <button
+                  onClick={() => onOpen(r.id)}
+                  className="group grid w-full grid-cols-[3px_minmax(0,1fr)] gap-x-4 gap-y-2 px-4 py-4 text-left transition hover:bg-surface-hover/50 focus-visible:bg-surface-hover/60 focus-visible:outline-none sm:px-5 md:grid-cols-[3px_64px_minmax(0,1fr)_130px]"
+                >
+                  <span aria-hidden className={cn("row-span-2 w-[3px] self-stretch rounded-full opacity-80 transition group-hover:opacity-100 md:row-span-1", tone.rail)} />
+                  <div className="hidden md:block">
+                    <p className={cn("font-mono text-[20px] font-medium leading-none tabular", tone.text)}>{r.rating}.0</p>
+                    <Stars rating={r.rating} size={9} className="mt-1.5" />
                   </div>
-                  <p className={cn("mt-1 line-clamp-2 text-[13px] leading-relaxed", r.comment ? "text-foreground-soft" : "italic text-muted-foreground")}>{r.comment || "Rating only — no written review"}</p>
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    {r.location_name && <span className="text-[11.5px] text-muted-foreground">{r.location_name}</span>}
-                    {r.sentiment && <span className={cn("inline-flex h-5 items-center rounded-full px-2 text-[10.5px] font-medium capitalize", SENTIMENT_STYLE[r.sentiment])}>{r.sentiment}</span>}
-                    {r.topics.slice(0, 3).map((t) => <Badge key={t} size="sm" variant="neutral">{TOPIC_LABELS[t] ?? titleCase(t)}</Badge>)}
-                    {r.source === "demo" && <Badge size="sm" variant="outline">Demo</Badge>}
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                      <span className="text-[13.5px] font-semibold text-foreground">{r.reviewer_name ?? "Anonymous"}</span>
+                      <Stars rating={r.rating} size={11} className="md:hidden" />
+                      <MonoTime title={format(d, "d MMM yyyy, h:mm a")}>{format(d, "dd MMM yyyy · HH:mm")}</MonoTime>
+                      <span className="text-[11.5px] text-subtle-foreground">· {formatDistanceToNow(d, { addSuffix: true })}</span>
+                      {r.is_flagged && <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.1em] text-danger-foreground"><Flag className="size-3" aria-hidden /> Flagged</span>}
+                    </div>
+                    <p className={cn("mt-1 line-clamp-2 text-[13px] leading-relaxed", r.comment ? "text-foreground-soft" : "italic text-muted-foreground")}>{r.comment || "Rating only — no written review"}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      {r.location_name && <span className="mr-1 font-mono text-[10.5px] uppercase tracking-[0.06em] text-subtle-foreground">{r.location_name}</span>}
+                      {r.sentiment && <Badge size="sm" variant={SENTIMENT_VARIANT[r.sentiment] ?? "neutral"} dot className="capitalize">{r.sentiment}</Badge>}
+                      {r.topics.slice(0, 3).map((t) => <Badge key={t} size="sm" variant="outline">{TOPIC_LABELS[t] ?? titleCase(t)}</Badge>)}
+                      {r.source === "demo" && <Badge size="sm" variant="amber" mono>Demo</Badge>}
+                    </div>
                   </div>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-2">
-                  <StatusBadge status={r.response_status} />
-                  {r.response_status === "pending" && (
-                    <span className="hidden items-center gap-1 text-[12px] font-medium text-primary opacity-0 transition group-hover:opacity-100 sm:inline-flex">
-                      <MessageSquareReply className="size-3.5" /> Reply
-                    </span>
-                  )}
-                </div>
-              </button>
-            </li>
-          ))}
+                  <div className="col-start-2 flex items-center justify-between gap-2 md:col-start-auto md:flex-col md:items-end md:justify-start">
+                    <StatusBadge status={r.response_status} />
+                    {r.response_status === "pending" && (
+                      <span className="inline-flex items-center gap-1 font-mono text-[10.5px] uppercase tracking-[0.1em] text-primary opacity-100 transition md:opacity-0 md:group-hover:opacity-100 md:group-focus-visible:opacity-100">
+                        Reply <CornerDownLeft className="size-3" />
+                      </span>
+                    )}
+                  </div>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
       {list.data && <Pagination page={list.data.page} pages={list.data.pages} total={list.data.total} pageSize={list.data.page_size} onPage={setPage} />}

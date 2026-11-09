@@ -7,7 +7,8 @@ import { toast } from "sonner";
 import { StatusBadge } from "@/components/app/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Panel } from "@/components/console/kit";
+import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FormField } from "@/components/ui/form-field";
 import { Input, Textarea } from "@/components/ui/input";
@@ -26,37 +27,42 @@ export function SupportTab() {
   const [creating, setCreating] = React.useState(false);
   const list = useQuery({ queryKey: ["support", "tickets"], queryFn: () => api.get<Ticket[]>("/support/tickets", undefined, { orgId: null }) });
   if (open) return <TicketView id={open} onBack={() => { setOpen(null); qc.invalidateQueries({ queryKey: ["support"] }); }} />;
+  const openCount = list.data?.filter((t) => !["resolved", "closed"].includes(t.status)).length ?? 0;
   return (
     <div className="space-y-6">
-      <Card className="relative overflow-hidden p-6">
-        <div className="pointer-events-none absolute -right-10 -top-16 size-48 rounded-full bg-blue/10 blur-3xl" aria-hidden />
+      <Card className="relative overflow-hidden p-5 sm:p-6">
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-tech-grid-fade opacity-50 [mask-image:linear-gradient(90deg,#000,transparent_70%)]" />
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center">
-          <span className="flex size-11 items-center justify-center rounded-2xl bg-blue-soft text-blue"><LifeBuoy className="size-5" /></span>
-          <div className="flex-1"><p className="text-[15px] font-semibold">Need a hand?</p><p className="text-[13px] text-muted-foreground">Our team replies within one business day (IST). Urgent billing or sync issues are prioritised.</p></div>
+          <span className="tech-corners flex size-11 shrink-0 items-center justify-center rounded-lg border border-border-strong bg-card-elevated text-ice"><LifeBuoy className="size-5" /></span>
+          <div className="flex-1">
+            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-subtle-foreground">Support desk · IST business hours</p>
+            <p className="mt-1 text-[15px] font-semibold">Need a hand?</p>
+            <p className="text-[13px] text-muted-foreground">Our team replies within one business day (IST). Urgent billing or sync issues are prioritised.</p>
+          </div>
           <Button onClick={() => setCreating(true)}><Plus /> New ticket</Button>
         </div>
       </Card>
-      <Card className="overflow-hidden">
-        <CardHeader className="pb-4"><CardTitle>Your tickets</CardTitle></CardHeader>
+      <Panel index="01" label="Queue" title="Your tickets" flush actions={list.data?.length ? <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-subtle-foreground">{openCount} open · {list.data.length} total</span> : null}>
         {list.isLoading ? <div className="p-5"><Skeleton className="h-24" /></div> : !list.data?.length ? (
           <EmptyState compact icon={LifeBuoy} title="No support tickets" description="Questions about integrations, billing or campaigns? Open a ticket." />
         ) : (
-          <ul className="divide-y divide-border border-t border-border">
+          <ul className="divide-y divide-border">
             {list.data.map((t) => (
               <li key={t.id}>
-                <button onClick={() => setOpen(t.id)} className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition hover:bg-muted/50">
+                <button onClick={() => setOpen(t.id)} className="group flex w-full items-center gap-3 px-5 py-3.5 text-left transition-colors hover:bg-surface-hover/60">
+                  <span className="hidden w-16 shrink-0 font-mono text-[10.5px] uppercase text-subtle-foreground sm:block">#{t.id.slice(0, 6)}</span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-medium">{t.subject}</p>
-                    <p className="text-xs text-muted-foreground">{titleCase(t.category)} · updated {formatDistanceToNow(new Date(t.updated_at), { addSuffix: true })}</p>
+                    <p className="truncate text-[13px] font-medium transition-colors group-hover:text-primary">{t.subject}</p>
+                    <p className="mt-0.5 font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">{titleCase(t.category)} · updated {formatDistanceToNow(new Date(t.updated_at), { addSuffix: true })}</p>
                   </div>
-                  {t.priority !== "normal" && <Badge size="sm" variant={t.priority === "urgent" || t.priority === "high" ? "danger" : "neutral"}>{titleCase(t.priority)}</Badge>}
+                  {t.priority !== "normal" && <Badge size="sm" mono variant={t.priority === "urgent" || t.priority === "high" ? "danger" : "neutral"}>{t.priority}</Badge>}
                   <StatusBadge status={t.status} />
                 </button>
               </li>
             ))}
           </ul>
         )}
-      </Card>
+      </Panel>
       <NewTicketDialog open={creating} onOpenChange={setCreating} onCreated={(id) => { qc.invalidateQueries({ queryKey: ["support"] }); setOpen(id); }} />
     </div>
   );
@@ -93,7 +99,7 @@ function NewTicketDialog({ open, onOpenChange, onCreated }: { open: boolean; onO
             </FormField>
           </div>
           <FormField label="Describe the issue" htmlFor="t-msg" hint="Include steps to reproduce, location names and what you expected."><Textarea id="t-msg" rows={5} value={v.message} onChange={(e) => setV({ ...v, message: e.target.value })} /></FormField>
-          <div className="rounded-xl border border-border bg-background-subtle p-4">
+          <div className="rounded-lg border border-border bg-background-subtle p-4">
             <div className="flex items-start gap-3">
               <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
               <div className="flex-1">
@@ -126,23 +132,23 @@ function TicketView({ id, onBack }: { id: string; onBack: () => void }) {
   const q = useQuery({ queryKey: ["support", "ticket", id], queryFn: () => api.get<TicketDetail>(`/support/tickets/${id}`, undefined, { orgId: null }) });
   const reply = useMutation({ mutationFn: () => api.post(`/support/tickets/${id}/messages`, { body: msg }, { orgId: null }), onSuccess: () => { setMsg(""); q.refetch(); }, onError: (e) => toast.error(errorMessage(e)) });
   return (
-    <Card>
-      <CardHeader>
+    <Card className="overflow-hidden">
+      <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
         <div className="min-w-0">
-          <button onClick={onBack} className="mb-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft className="size-3.5" /> All tickets</button>
-          <CardTitle className="truncate">{q.data?.subject ?? "Loading…"}</CardTitle>
-          {q.data && <CardDescription>Priority {q.data.priority}</CardDescription>}
+          <button onClick={onBack} className="group mb-2 inline-flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"><ArrowLeft className="size-3.5 transition group-hover:-translate-x-0.5" /> All tickets</button>
+          <h3 className="truncate text-[15px] font-semibold tracking-[-0.01em]">{q.data?.subject ?? "Loading…"}</h3>
+          {q.data && <p className="mt-0.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-subtle-foreground">#{q.data.id.slice(0, 6)} · priority {q.data.priority} · {q.data.messages.length} messages</p>}
         </div>
         {q.data && <StatusBadge status={q.data.status} size="md" />}
-      </CardHeader>
-      <CardContent className="space-y-4">
+      </div>
+      <div className="space-y-4 p-5">
         {q.isLoading ? <Skeleton className="h-40" /> : (
           <ol className="space-y-3">
             {q.data?.messages.map((m) => (
               <li key={m.id} className={cn("flex", m.from_staff ? "justify-start" : "justify-end")}>
-                <div className={cn("max-w-[85%] rounded-2xl px-4 py-2.5 text-[13.5px] leading-relaxed", m.from_staff ? "rounded-tl-sm border border-border bg-background-subtle" : "rounded-tr-sm bg-primary text-primary-foreground")}>
+                <div className={cn("max-w-[85%] rounded-lg border px-4 py-2.5 text-[13.5px] leading-relaxed", m.from_staff ? "rounded-tl-sm border-border bg-background-subtle" : "rounded-tr-sm border-[color-mix(in_oklab,var(--primary)_30%,transparent)] bg-primary-soft text-foreground")}>
+                  <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.12em] text-subtle-foreground">{m.from_staff ? "ReviewPilot support" : "You"} · {format(new Date(m.created_at), "d MMM, HH:mm")}</p>
                   <p className="whitespace-pre-wrap">{m.body}</p>
-                  <p className={cn("mt-1 text-[10.5px]", m.from_staff ? "text-subtle-foreground" : "text-white/70")}>{m.from_staff ? "ReviewPilot support · " : "You · "}{format(new Date(m.created_at), "d MMM, HH:mm")}</p>
                 </div>
               </li>
             ))}
@@ -152,7 +158,7 @@ function TicketView({ id, onBack }: { id: string; onBack: () => void }) {
           <Textarea rows={2} value={msg} onChange={(e) => setMsg(e.target.value)} placeholder="Write a reply…" aria-label="Reply" className="min-h-14" />
           <Button type="submit" disabled={!msg.trim()} loading={reply.isPending}><Send /> Send</Button>
         </form>
-      </CardContent>
+      </div>
     </Card>
   );
 }

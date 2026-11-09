@@ -5,18 +5,19 @@ import { cn } from "@/lib/utils";
 
 export const axisProps = {
   stroke: "var(--subtle-foreground)",
-  fontSize: 11,
+  fontSize: 10.5,
+  fontFamily: "var(--font-geist-mono)",
   tickLine: false,
   axisLine: false,
 } as const;
 
-export const gridProps = { stroke: "var(--chart-grid)", strokeDasharray: "3 3", vertical: false } as const;
+export const gridProps = { stroke: "var(--chart-grid)", strokeDasharray: "2 4", vertical: false } as const;
 
 export function GradientDefs({ id, color }: { id: string; color: string }) {
   return (
     <defs>
       <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor={color} stopOpacity={0.28} />
+        <stop offset="0%" stopColor={color} stopOpacity={0.32} />
         <stop offset="100%" stopColor={color} stopOpacity={0} />
       </linearGradient>
     </defs>
@@ -36,16 +37,16 @@ export function ChartTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="min-w-36 rounded-xl border border-border bg-popover px-3 py-2.5 text-xs shadow-lg">
-      <p className="mb-1.5 font-medium text-foreground">{labelFormatter ? labelFormatter(label) : label}</p>
+    <div className="min-w-40 rounded-lg border border-border-strong bg-popover/95 px-3 py-2.5 text-xs shadow-lg backdrop-blur">
+      <p className="mb-2 border-b border-border pb-1.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-muted-foreground">{labelFormatter ? labelFormatter(label) : label}</p>
       <div className="space-y-1">
         {payload.map((p, i) => (
           <div key={i} className="flex items-center justify-between gap-4">
             <span className="flex items-center gap-1.5 text-muted-foreground">
-              <span className="size-2 rounded-full" style={{ background: p.color }} />
+              <span className="h-2 w-[3px] rounded-[1px]" style={{ background: p.color, boxShadow: `0 0 6px ${p.color}` }} />
               {p.name}
             </span>
-            <span className="font-semibold tabular text-foreground">{valueFormatter ? valueFormatter(p.value, p.name) : p.value}</span>
+            <span className="font-mono font-medium tabular text-foreground">{valueFormatter ? valueFormatter(p.value, p.name) : p.value}</span>
           </div>
         ))}
       </div>

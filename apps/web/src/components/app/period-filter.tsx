@@ -29,12 +29,12 @@ export function PeriodFilter({ value, onChange, className }: { value: Period; on
   const [to, setTo] = React.useState(value.date_to ?? "");
   const [open, setOpen] = React.useState(false);
   return (
-    <div className={cn("inline-flex h-9 items-center gap-0.5 rounded-lg border border-border bg-card p-0.5 shadow-xs", className)} role="group" aria-label="Date range">
+    <div className={cn("inline-flex h-9 items-center gap-0.5 rounded-lg border border-border bg-background-subtle p-0.5", className)} role="group" aria-label="Date range">
       {OPTIONS.map((o) => (
         <button
           key={o.value}
           onClick={() => onChange({ period: o.value })}
-          className={cn("h-full rounded-md px-3 text-[12.5px] font-medium transition", value.period === o.value ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+          className={cn("h-full rounded-md px-3 font-mono text-[11px] font-medium tracking-[0.06em] transition", value.period === o.value ? "bg-card-elevated text-primary shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--primary)_40%,transparent)]" : "text-muted-foreground hover:text-foreground")}
           aria-pressed={value.period === o.value}
         >
           {o.label}
@@ -42,7 +42,7 @@ export function PeriodFilter({ value, onChange, className }: { value: Period; on
       ))}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <button className={cn("flex h-full items-center gap-1.5 rounded-md px-3 text-[12.5px] font-medium transition", value.period === "custom" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+          <button className={cn("flex h-full items-center gap-1.5 rounded-md px-3 font-mono text-[11px] font-medium tracking-[0.06em] transition", value.period === "custom" ? "bg-card-elevated text-primary shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--primary)_40%,transparent)]" : "text-muted-foreground hover:text-foreground")}>
             <CalendarRange className="size-3.5" />
             {value.period === "custom" && value.date_from ? `${value.date_from} → ${value.date_to}` : "Custom"}
           </button>

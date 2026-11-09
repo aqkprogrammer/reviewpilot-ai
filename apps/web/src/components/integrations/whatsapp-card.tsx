@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { InlineAlert, Skeleton } from "@/components/ui/states";
 import { api, errorMessage } from "@/lib/api";
 import { useOrg } from "@/lib/session";
-import { IntegrationCard, KV } from "./shell";
+import { IntegrationCard, KV, KVGroup, SetupSteps, StateRail } from "./shell";
 
 interface WAStatus {
   status: string; phone_number_id: string | null; business_account_id: string | null; display: string | null; access_token_masked: string | null;
@@ -25,8 +25,8 @@ function CopyField({ value }: { value: string }) {
   const [ok, setOk] = React.useState(false);
   return (
     <div className="flex items-center gap-1.5">
-      <code className="min-w-0 flex-1 truncate rounded-md bg-muted px-2 py-1.5 font-mono text-[11.5px]">{value}</code>
-      <Button variant="ghost" size="icon-xs" aria-label="Copy" onClick={async () => { await navigator.clipboard.writeText(value).catch(() => {}); setOk(true); setTimeout(() => setOk(false), 1200); }}>{ok ? <Check /> : <Copy />}</Button>
+      <code className="min-w-0 flex-1 truncate rounded-md border border-border bg-background-subtle px-2.5 py-1.5 font-mono text-[11.5px] text-foreground-soft">{value}</code>
+      <Button variant="ghost" size="icon-xs" aria-label="Copy" onClick={async () => { await navigator.clipboard.writeText(value).catch(() => {}); setOk(true); setTimeout(() => setOk(false), 1200); }}>{ok ? <Check className="text-success" /> : <Copy />}</Button>
     </div>
   );
 }
@@ -58,6 +58,7 @@ export function WhatsAppCard() {
     <IntegrationCard
       icon={<WhatsAppIcon />}
       name="WhatsApp Cloud API"
+      code="Meta · Cloud API · Templates"
       tagline="Send approved-template review requests from your own WhatsApp Business number."
       status={s.status}
       footer={manage && connected && !editing && (
@@ -70,17 +71,28 @@ export function WhatsAppCard() {
         </>
       )}
     >
+      <StateRail status={s.status} />
       {s.demo_mode && !connected && (
         <InlineAlert variant="primary" icon={FlaskConical}>Demo mode: WhatsApp campaigns are simulated and nothing is sent until you connect real credentials.</InlineAlert>
       )}
       {connected && !editing && (
-        <div className="space-y-2">
-          <KV label="Number" value={s.display} />
+        <KVGroup>
+          <KV label="Number" value={s.display} mono />
           <KV label="Phone number ID" value={s.phone_number_id} mono />
           <KV label="Access token" value={s.access_token_masked} mono />
-        </div>
+        </KVGroup>
       )}
       {s.last_error && <InlineAlert variant="danger" title="Meta rejected the credentials">{s.last_error}</InlineAlert>}
+      {showForm && !connected && (
+        <SetupSteps
+          steps={[
+            "In Meta Business Suite, add a WhatsApp Business number to a Cloud API app.",
+            "Create a system user with the whatsapp_business_messaging permission and generate a permanent token.",
+            "Paste the phone number ID, business account ID and token below — we verify them with Meta before saving.",
+            "Add the webhook URL below in Meta → Configuration to receive delivery receipts.",
+          ]}
+        />
+      )}
       {showForm && (
         <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -98,13 +110,13 @@ export function WhatsAppCard() {
         </form>
       )}
       <div>
-        <p className="mb-1.5 text-xs font-medium text-muted-foreground">Webhook callback URL (Meta → Configuration)</p>
+        <p className="micro-label mb-1.5">Webhook callback URL · Meta → Configuration</p>
         <CopyField value={s.webhook_url} />
       </div>
       {(s.templates.length > 0 || s.remote_templates.length > 0) && (
         <div>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-subtle-foreground">Message templates</p>
-          <ul className="divide-y divide-border rounded-xl border border-border">
+          <p className="micro-label mb-2">Message templates</p>
+          <ul className="divide-y divide-border rounded-lg border border-border">
             {(s.remote_templates.length ? s.remote_templates.map((t) => ({ key: t.name + t.language, name: t.name, lang: t.language, status: t.status?.toLowerCase() })) : s.templates.map((t) => ({ key: t.id, name: t.provider_template_name ?? t.name, lang: t.language, status: t.status }))).map((t) => (
               <li key={t.key} className="flex items-center justify-between gap-3 px-3 py-2 text-[13px]">
                 <span className="min-w-0 truncate font-mono text-xs">{t.name} <span className="text-muted-foreground">· {t.lang}</span></span>

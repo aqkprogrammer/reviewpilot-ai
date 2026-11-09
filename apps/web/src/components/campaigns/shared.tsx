@@ -34,17 +34,18 @@ export interface RequestRow {
 }
 
 export const CHANNEL_META = {
-  whatsapp: { label: "WhatsApp", icon: WhatsAppIcon, chip: "bg-[#e7f9ee] dark:bg-[#25d366]/15" },
-  email: { label: "Email", icon: Mail, chip: "bg-blue-soft text-blue" },
-  sms: { label: "SMS", icon: MessageSquare, chip: "bg-purple-soft text-purple" },
-  qr: { label: "QR code", icon: QrCode, chip: "bg-cyan-soft text-cyan" },
+  whatsapp: { label: "WhatsApp", icon: WhatsAppIcon, tone: "text-success" },
+  email: { label: "Email", icon: Mail, tone: "text-ice" },
+  sms: { label: "SMS", icon: MessageSquare, tone: "text-mint" },
+  qr: { label: "QR code", icon: QrCode, tone: "text-cyan" },
 } as const;
 
+/** Channel glyph in a graphite instrument chip (hairline border, tinted icon). */
 export function ChannelIcon({ channel, className }: { channel: string; className?: string }) {
   const m = CHANNEL_META[channel as keyof typeof CHANNEL_META] ?? CHANNEL_META.email;
   return (
-    <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl", m.chip, className)} title={m.label}>
-      <m.icon className="size-[18px]" />
+    <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg border border-border-strong bg-background-subtle shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_6%,transparent)]", m.tone, className)} title={m.label}>
+      <m.icon className="size-[17px]" />
     </span>
   );
 }

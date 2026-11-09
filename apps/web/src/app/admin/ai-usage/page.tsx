@@ -1,10 +1,11 @@
 "use client";
 import * as React from "react";
 import Link from "next/link";
-import { AlertTriangle, Bot, Coins, Cpu, Hash } from "lucide-react";
-import { formatNumber, titleCase } from "@/lib/utils";
+import { AlertTriangle, Bot, Coins, Cpu, Hash, Percent } from "lucide-react";
+import { formatNumber, formatPercent, titleCase } from "@/lib/utils";
 import { BarTrend, C, Donut } from "@/components/admin/charts";
-import { Bar, DataTable, MetricCard, Panel, QueryState, Row, SectionHeader, Td, Th, relTime, useAdmin } from "@/components/admin/ui";
+import { DataTable, Row, SearchInput, SortNote, Td, Th, Toolbar, useClientSort } from "@/components/admin/table";
+import { EmptyLine, Kpi, KpiGrid, Meter, Monogram, Notice, Panel, QueryState, SectionHeader, stamp, useAdmin } from "@/components/admin/ui";
 
 interface AIUsage {
   period: string; configured: boolean; model: string;
@@ -20,57 +21,78 @@ const usd = (v: number) => `$${v.toFixed(v < 1 ? 4 : 2)}`;
 export default function AIUsagePage() {
   const q = useAdmin<AIUsage>("/ai-usage");
   const d = q.data;
+  const [search, setSearch] = React.useState("");
+  const orgs = (d?.per_organization ?? []).filter((o) => !search || o.organization_name.toLowerCase().includes(search.toLowerCase()));
+  const { sorted, sort, toggle } = useClientSort(orgs, { org: (o) => o.organization_name, requests: (o) => o.requests, failed: (o) => o.failed, tokens: (o) => o.tokens, cost: (o) => o.estimated_cost_usd }, { key: "requests", dir: "desc" });
   const max = Math.max(1, ...(d?.per_organization.map((o) => o.requests) ?? [1]));
+  const periodLabel = d ? new Date(`${d.period}-01T00:00:00`).toLocaleDateString("en-IN", { month: "long", year: "numeric" }) : "";
+  const tokens = d ? d.totals.prompt_tokens + d.totals.completion_tokens : 0;
   return (
     <>
-      <SectionHeader eyebrow="Operations" title="AI usage" description={d ? `Metered usage for ${d.period}. ${d.configured ? `Primary model: ${d.model}.` : "OpenAI is not configured — requests use the offline heuristic engine (zero cost)."}` : "Metered AI consumption."} />
+      <SectionHeader title="AI usage" description="Metered AI consumption per tenant, feature and model. Cost is a list-price estimate in USD." meta={periodLabel} />
       <QueryState query={q}>
         {d && (
-          <div className="space-y-5">
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard label="Requests this month" value={formatNumber(d.totals.requests)} icon={Bot} accent="violet" />
-              <MetricCard label="Tokens" value={formatNumber(d.totals.prompt_tokens + d.totals.completion_tokens, { compact: true })} icon={Hash} accent="blue" hint={`${formatNumber(d.totals.prompt_tokens, { compact: true })} in · ${formatNumber(d.totals.completion_tokens, { compact: true })} out`} />
-              <MetricCard label="Estimated cost" value={usd(d.totals.estimated_cost_usd)} icon={Coins} accent="amber" hint="List-price estimate (USD)" />
-              <MetricCard label="Failed requests" value={formatNumber(d.totals.failed)} icon={AlertTriangle} accent={d.totals.failed ? "rose" : "emerald"} />
-            </div>
+          <div className="space-y-4">
+            {!d.configured && <Notice icon={Cpu} tone="ice">OpenAI is not configured — requests use the offline heuristic engine at zero cost. Set <span className="font-mono">OPENAI_API_KEY</span> to switch to <span className="font-mono">{d.model}</span>.</Notice>}
+            <KpiGrid className="grid-cols-2 lg:grid-cols-5">
+              <Kpi label="Requests · month" value={d.totals.requests} icon={Bot} tone="mint" sub={d.configured ? d.model : "offline engine"} />
+              <Kpi label="Tokens" value={tokens} format={(n) => formatNumber(n, { compact: true })} icon={Hash} tone="ice" sub={`${formatNumber(d.totals.prompt_tokens, { compact: true })} in · ${formatNumber(d.totals.completion_tokens, { compact: true })} out`} />
+              <Kpi label="Est. cost · USD" display={usd(d.totals.estimated_cost_usd)} icon={Coins} tone="amber" sub="List-price estimate" />
+              <Kpi label="Failed" value={d.totals.failed} icon={AlertTriangle} tone={d.totals.failed ? "danger" : "success"} alert={!!d.totals.failed} sub="Provider or parse errors" />
+              <Kpi label="Failure rate" display={d.totals.requests ? formatPercent(d.totals.failed / d.totals.requests) : "—"} icon={Percent} tone="neutral" sub="Failed ÷ requests" />
+            </KpiGrid>
             <div className="grid gap-4 xl:grid-cols-3">
-              <Panel title="Requests by month" className="xl:col-span-2"><BarTrend data={d.monthly} x="period" series={[{ key: "requests", name: "Requests", color: C.violet }]} height={240} /></Panel>
-              <Panel title="By feature"><Donut data={Object.entries(d.by_kind).map(([k, v]) => ({ name: titleCase(k), value: v }))} height={160} /></Panel>
+              <Panel title="Requests by month" description="Metered requests across all tenants" meta={`${d.monthly.length} months`} className="xl:col-span-2">
+                <BarTrend data={d.monthly} x="period" series={[{ key: "requests", name: "Requests", color: C.mint }]} height={240} />
+              </Panel>
+              <Panel title="By feature" description="All-time generations by kind">
+                <Donut size={132} data={Object.entries(d.by_kind).map(([k, v]) => ({ name: titleCase(k), value: v }))} center={<><span className="text-[18px] font-semibold tabular">{formatNumber(Object.values(d.by_kind).reduce((a, b) => a + b, 0), { compact: true })}</span><span className="micro-label text-[9px]">gens</span></>} />
+              </Panel>
             </div>
-            <div className="grid gap-4 xl:grid-cols-3">
-              <Panel title="Usage by organization" flush className="xl:col-span-2">
-                <DataTable colSpan={5} minWidth={560} empty={!d.per_organization.length} head={<><Th>Organization</Th><Th>Share</Th><Th align="right">Requests</Th><Th align="right">Tokens</Th><Th align="right">Cost</Th></>}>
-                  {d.per_organization.map((o) => (
+            <div className="grid gap-4 xl:grid-cols-[1.7fr_1fr]">
+              <Panel title="Usage by organization" description="This month · top 50" flush>
+                <Toolbar right={<SortNote sort={sort} base="By requests" />}><SearchInput value={search} onChange={setSearch} placeholder="Filter organizations" /></Toolbar>
+                <DataTable colSpan={6} minWidth={660} maxHeight={440} empty={!sorted.length ? <EmptyLine>No AI usage this month</EmptyLine> : false} caption="AI usage by organization"
+                  head={<><Th sortKey="org" sort={sort} onSort={toggle}>Organization</Th><Th>Share</Th><Th align="right" sortKey="requests" sort={sort} onSort={toggle}>Requests</Th><Th align="right" sortKey="failed" sort={sort} onSort={toggle}>Failed</Th><Th align="right" sortKey="tokens" sort={sort} onSort={toggle}>Tokens</Th><Th align="right" sortKey="cost" sort={sort} onSort={toggle}>Cost</Th></>}>
+                  {sorted.map((o) => (
                     <Row key={o.organization_id}>
-                      <Td><Link href={`/admin/organizations/${o.organization_id}`} className="font-medium text-foreground hover:underline">{o.organization_name}</Link></Td>
-                      <Td className="w-40"><Bar value={o.requests} max={max} accent={C.violet} /></Td>
-                      <Td align="right">{formatNumber(o.requests)}</Td>
-                      <Td align="right">{formatNumber(o.tokens, { compact: true })}</Td>
-                      <Td align="right" className="font-mono">{usd(o.estimated_cost_usd)}</Td>
+                      <Td><Link href={`/admin/organizations/${o.organization_id}`} className="group flex items-center gap-2.5"><Monogram name={o.organization_name} size={24} /><span className="truncate font-medium text-foreground group-hover:text-primary">{o.organization_name}</span></Link></Td>
+                      <Td className="w-36"><Meter value={o.requests} max={max} tone="mint" label={`${o.organization_name} share`} /></Td>
+                      <Td align="right" className="font-mono text-[12px] text-foreground">{formatNumber(o.requests)}</Td>
+                      <Td align="right" className={o.failed ? "font-mono text-[12px] text-danger-foreground" : "font-mono text-[12px]"}>{o.failed}</Td>
+                      <Td align="right" className="font-mono text-[12px]">{formatNumber(o.tokens, { compact: true })}</Td>
+                      <Td align="right" className="font-mono text-[12px]">{usd(o.estimated_cost_usd)}</Td>
                     </Row>
                   ))}
                 </DataTable>
               </Panel>
-              <Panel title="By model" flush>
-                <ul className="divide-y divide-border">
-                  {d.by_model.map((m) => (
-                    <li key={`${m.provider}-${m.model}`} className="flex items-center justify-between gap-3 px-5 py-3 text-[13px]">
-                      <span className="flex items-center gap-2.5"><Cpu className="size-4 text-subtle-foreground" /><span><span className="block font-mono text-[12px] text-foreground">{m.model}</span><span className="text-[11px] text-muted-foreground">{m.provider}</span></span></span>
-                      <span className="text-right font-mono text-[12px]"><span className="block text-foreground">{formatNumber(m.requests)}</span><span className="text-subtle-foreground">{usd(m.estimated_cost_usd)}</span></span>
-                    </li>
-                  ))}
-                  {!d.by_model.length && <li className="px-5 py-8 text-center text-[13px] text-muted-foreground">No generations logged.</li>}
-                </ul>
-              </Panel>
+              <div className="space-y-4">
+                <Panel title="By model" description="All-time generations" flush>
+                  <ul className="divide-y divide-border">
+                    {d.by_model.map((m) => (
+                      <li key={`${m.provider}-${m.model}`} className="flex items-center gap-3 px-4 py-2.5">
+                        <Cpu className="size-4 shrink-0 text-subtle-foreground" />
+                        <span className="min-w-0 flex-1"><span className="block truncate font-mono text-[12px] text-foreground">{m.model}</span><span className="font-mono text-[10.5px] uppercase text-subtle-foreground">{m.provider} · {formatNumber(m.tokens, { compact: true })} tok</span></span>
+                        <span className="text-right font-mono text-[12px]"><span className="block tabular text-foreground">{formatNumber(m.requests)}</span><span className="text-[10.5px] text-subtle-foreground">{usd(m.estimated_cost_usd)}</span></span>
+                      </li>
+                    ))}
+                    {!d.by_model.length && <li><EmptyLine>No generations logged</EmptyLine></li>}
+                  </ul>
+                </Panel>
+                <Panel title="Recent failures" description="Latest 10 failed generations" flush>
+                  <ul className="max-h-[260px] divide-y divide-border overflow-y-auto scrollbar-thin">
+                    {d.recent_failures.map((f) => (
+                      <li key={f.id} className="px-4 py-2.5">
+                        <p className="flex items-center gap-2 text-[12px]"><span className="truncate font-medium text-foreground">{f.organization_name}</span><span className="ml-auto shrink-0 font-mono text-[10.5px] text-subtle-foreground">{stamp(f.created_at, false)}</span></p>
+                        <p className="font-mono text-[10.5px] uppercase text-subtle-foreground">{f.kind} · {f.model}</p>
+                        <p className="truncate text-[11.5px] text-danger-foreground">{f.error}</p>
+                      </li>
+                    ))}
+                    {!d.recent_failures.length && <li><EmptyLine>No failed AI requests</EmptyLine></li>}
+                  </ul>
+                </Panel>
+              </div>
             </div>
-            <Panel title="Recent failures" flush>
-              <ul className="divide-y divide-border">
-                {d.recent_failures.map((f) => (
-                  <li key={f.id} className="px-5 py-3 text-[13px]"><span className="font-medium text-foreground">{f.organization_name}</span> <span className="font-mono text-[11.5px] text-subtle-foreground">· {f.kind} · {f.model} · {relTime(f.created_at)}</span><p className="truncate text-[12px] text-danger-foreground">{f.error}</p></li>
-                ))}
-                {!d.recent_failures.length && <li className="px-5 py-8 text-center text-[13px] text-muted-foreground">No failed AI requests.</li>}
-              </ul>
-            </Panel>
           </div>
         )}
       </QueryState>

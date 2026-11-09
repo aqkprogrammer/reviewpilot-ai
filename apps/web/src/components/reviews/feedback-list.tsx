@@ -1,25 +1,28 @@
 "use client";
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
-import { Lock, Mail, MessageCircle, Phone, QrCode } from "lucide-react";
+import { Link2, Lock, Mail, MessageCircle, Phone, QrCode } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState, ErrorState, InlineAlert, Skeleton } from "@/components/ui/states";
 import { Stars } from "@/components/ui/stars";
+import { StatusDot } from "@/components/ui/tech";
 import { Pagination } from "@/components/app/pagination";
+import { MonoTime, Segmented } from "@/components/dashboard/kit";
 import { api, errorMessage } from "@/lib/api";
 import { useOrg } from "@/lib/session";
 import { cn } from "@/lib/utils";
-import { SENTIMENT_STYLE, type Feedback } from "./types";
+import { SENTIMENT_VARIANT, type Feedback } from "./types";
 
 const STATUSES = [
   { value: "new", label: "New" },
   { value: "in_progress", label: "In progress" },
   { value: "resolved", label: "Resolved" },
 ];
+const STATUS_DOT: Record<string, "signal" | "warn" | "ok"> = { new: "signal", in_progress: "warn", resolved: "ok" };
 
 export function FeedbackList() {
   const { orgId, locationId, locations, can } = useOrg();
@@ -44,15 +47,9 @@ export function FeedbackList() {
         Feedback submitted on your public feedback page goes only to your team. It is never posted to Google — and every customer is offered the same option to leave a public Google review.
       </InlineAlert>
       <Card className="overflow-hidden">
-        <div className="flex items-center justify-between gap-3 border-b border-border p-4">
-          <p className="text-[13px] text-muted-foreground">{q.data ? `${q.data.total} submissions` : "Loading…"}</p>
-          <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
-            <SelectTrigger className="w-[160px]" size="sm" aria-label="Status"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              {STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
+        <div className="flex flex-col gap-3 border-b border-border p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+          <Segmented id="feedback-status" ariaLabel="Feedback status" value={status} onChange={(v) => { setStatus(v); setPage(1); }} options={[{ value: "all", label: "All" }, ...STATUSES]} />
+          <p className="font-mono text-[10.5px] uppercase tracking-[0.1em] text-subtle-foreground">{q.data ? `${q.data.total} submissions` : "Loading…"}</p>
         </div>
         {q.isError ? (
           <ErrorState message={errorMessage(q.error)} onRetry={() => q.refetch()} />
@@ -61,32 +58,43 @@ export function FeedbackList() {
         ) : !q.data?.items.length ? (
           <EmptyState icon={MessageCircle} title="No private feedback yet" description="Share your feedback page link or a QR code — customers can write to you directly." />
         ) : (
-          <ul className="divide-y divide-border">
-            {q.data.items.map((f) => (
-              <li key={f.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[13.5px] font-semibold">{f.name || "Anonymous customer"}</span>
-                    {f.rating && <Stars rating={f.rating} size={12} />}
-                    {f.sentiment && <span className={cn("inline-flex h-5 items-center rounded-full px-2 text-[10.5px] font-medium capitalize", SENTIMENT_STYLE[f.sentiment])}>{f.sentiment}</span>}
-                    <Badge size="sm" variant="neutral">{f.channel === "qr" ? <QrCode /> : <MessageCircle />}{f.channel === "qr" ? "QR scan" : f.channel === "direct" ? "Direct link" : f.channel}</Badge>
-                    {f.language === "hi" && <Badge size="sm" variant="outline">Hindi</Badge>}
+          <ul className={cn("divide-y divide-border", q.isFetching && "opacity-70")}>
+            {q.data.items.map((f) => {
+              const at = new Date(f.created_at);
+              return (
+                <li key={f.id} className="grid gap-3 px-4 py-4 sm:px-5 md:grid-cols-[92px_minmax(0,1fr)_160px] md:gap-5">
+                  <div className="flex items-center gap-2 md:block">
+                    <MonoTime className="block text-foreground-soft">{format(at, "dd MMM yyyy")}</MonoTime>
+                    <MonoTime className="block">{format(at, "HH:mm")}</MonoTime>
+                    <span className="text-[11px] text-subtle-foreground md:mt-1 md:block">{formatDistanceToNow(at, { addSuffix: true })}</span>
                   </div>
-                  <p className="mt-1.5 whitespace-pre-line text-[13px] leading-relaxed text-foreground-soft">{f.message}</p>
-                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-muted-foreground">
-                    <span>{format(new Date(f.created_at), "d MMM yyyy, h:mm a")}</span>
-                    {locName(f.location_id) && <span>{locName(f.location_id)}</span>}
-                    {f.consent_contact && f.email && <span className="inline-flex items-center gap-1"><Mail className="size-3" />{f.email}</span>}
-                    {f.consent_contact && f.phone && <span className="inline-flex items-center gap-1"><Phone className="size-3" />{f.phone}</span>}
-                    {!f.consent_contact && (f.email || f.phone) && <span>Contact details shared without consent to be contacted</span>}
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[13.5px] font-semibold">{f.name || "Anonymous customer"}</span>
+                      {f.rating && <Stars rating={f.rating} size={11} />}
+                      {f.sentiment && <Badge size="sm" variant={SENTIMENT_VARIANT[f.sentiment] ?? "neutral"} dot className="capitalize">{f.sentiment}</Badge>}
+                      <Badge size="sm" variant="outline" mono>{f.channel === "qr" ? <QrCode /> : f.channel === "direct" ? <Link2 /> : <MessageCircle />}{f.channel === "qr" ? "QR scan" : f.channel === "direct" ? "Direct link" : f.channel}</Badge>
+                      {f.language === "hi" && <Badge size="sm" variant="outline">Hindi</Badge>}
+                    </div>
+                    <p className="mt-1.5 whitespace-pre-line text-[13px] leading-relaxed text-foreground-soft">{f.message}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10.5px] uppercase tracking-[0.06em] text-subtle-foreground">
+                      {locName(f.location_id) && <span>{locName(f.location_id)}</span>}
+                      {f.consent_contact && f.email && <span className="inline-flex items-center gap-1 normal-case tracking-normal"><Mail className="size-3" />{f.email}</span>}
+                      {f.consent_contact && f.phone && <span className="inline-flex items-center gap-1 normal-case tracking-normal"><Phone className="size-3" />{f.phone}</span>}
+                      {!f.consent_contact && (f.email || f.phone) && <span className="normal-case tracking-normal">Contact details shared without consent to be contacted</span>}
+                    </div>
                   </div>
-                </div>
-                <Select value={f.status} onValueChange={(v) => update.mutate({ id: f.id, status: v })} disabled={!can("reviews.reply")}>
-                  <SelectTrigger size="sm" className="w-[150px] shrink-0" aria-label="Feedback status"><SelectValue /></SelectTrigger>
-                  <SelectContent>{STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </li>
-            ))}
+                  <div className="md:justify-self-end">
+                    <Select value={f.status} onValueChange={(v) => update.mutate({ id: f.id, status: v })} disabled={!can("reviews.reply")}>
+                      <SelectTrigger size="sm" className="w-full md:w-[156px]" aria-label="Feedback status">
+                        <span className="flex items-center gap-2"><StatusDot tone={STATUS_DOT[f.status] ?? "idle"} /><SelectValue /></span>
+                      </SelectTrigger>
+                      <SelectContent>{STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
         {q.data && <Pagination page={q.data.page} pages={q.data.pages} total={q.data.total} pageSize={q.data.page_size} onPage={setPage} />}

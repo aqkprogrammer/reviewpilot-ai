@@ -8,7 +8,7 @@ import { ApiError } from "@/lib/api";
 
 function ThemedToaster() {
   const { resolved } = useTheme();
-  return <Toaster position="bottom-right" theme={resolved} richColors closeButton toastOptions={{ className: "!rounded-xl !text-[13px]" }} />;
+  return <Toaster position="bottom-right" theme={resolved} closeButton toastOptions={{ className: "!rounded-lg !border !border-[var(--border-strong)] !bg-[var(--popover)] !text-[var(--foreground)] !text-[13px] !shadow-lg" }} />;
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {

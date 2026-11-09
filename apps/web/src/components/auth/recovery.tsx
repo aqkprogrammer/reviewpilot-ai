@@ -14,15 +14,24 @@ import { InlineAlert } from "@/components/ui/states";
 import { api, errorMessage } from "@/lib/api";
 import { AuthHeading } from "./auth-shell";
 import { PasswordInput, StrengthMeter } from "./password-input";
+import { TerminalField } from "./terminal";
 
 export function StatusIcon({ icon: Icon, tone = "primary" }: { icon: React.ComponentType<{ className?: string }>; tone?: "primary" | "success" | "danger" }) {
-  const t = { primary: "bg-primary-soft text-primary", success: "bg-success-soft text-success-foreground", danger: "bg-danger-soft text-danger-foreground" }[tone];
-  return <span className={`mb-6 flex size-12 items-center justify-center rounded-2xl ${t}`}><Icon className="size-6" /></span>;
+  const t = {
+    primary: "border-[color-mix(in_oklab,var(--primary)_35%,transparent)] bg-primary-soft text-primary",
+    success: "border-[color-mix(in_oklab,var(--mint)_30%,transparent)] bg-mint-soft text-mint",
+    danger: "border-[color-mix(in_oklab,var(--danger)_30%,transparent)] bg-danger-soft text-danger-foreground",
+  }[tone];
+  return (
+    <span className={`tech-corners mb-7 flex size-12 items-center justify-center rounded-md border ${t}`}>
+      <Icon className="size-5" />
+    </span>
+  );
 }
 
 function BackToLogin() {
   return (
-    <Link href="/login" className="mt-8 inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground hover:text-foreground">
+    <Link href="/login" className="mt-8 inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-primary">
       <ArrowLeft className="size-4" /> Back to sign in
     </Link>
   );
@@ -46,7 +55,7 @@ export function ForgotPasswordForm() {
     return (
       <div>
         <StatusIcon icon={MailCheck} />
-        <AuthHeading title="Check your inbox" description={<>If an account exists for <span className="font-medium text-foreground">{sentTo}</span>, we&apos;ve sent a link to reset your password. It expires in 60 minutes.</>} />
+        <AuthHeading eyebrow="Account recovery · sent" title="Check your inbox" description={<>If an account exists for <span className="font-medium text-foreground">{sentTo}</span>, we&apos;ve sent a link to reset your password. It expires in 60 minutes.</>} />
         <InlineAlert variant="info" icon={Mail}>Didn&apos;t get it? Check spam, or try again in a few minutes.</InlineAlert>
         <BackToLogin />
       </div>
@@ -55,11 +64,13 @@ export function ForgotPasswordForm() {
   return (
     <div>
       <StatusIcon icon={KeyRound} />
-      <AuthHeading title="Forgot your password?" description="Enter the email you sign in with and we'll send you a reset link." />
+      <AuthHeading eyebrow="Account recovery" title="Forgot your password?" description="Enter the email you sign in with and we'll send you a reset link." />
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-        <FormField label="Email" htmlFor="email" error={errors.email?.message}>
-          <Input id="email" type="email" autoComplete="email" placeholder="you@business.com" leading={<Mail />} invalid={!!errors.email} {...register("email")} />
-        </FormField>
+        <TerminalField>
+          <FormField label="Email" htmlFor="email" error={errors.email?.message}>
+            <Input id="email" type="email" autoComplete="email" placeholder="you@business.com" leading={<Mail />} invalid={!!errors.email} {...register("email")} />
+          </FormField>
+        </TerminalField>
         <Button type="submit" size="lg" className="w-full" loading={isSubmitting}>Send reset link</Button>
       </form>
       <BackToLogin />
@@ -86,7 +97,7 @@ export function ResetPasswordForm() {
     return (
       <div>
         <StatusIcon icon={ShieldAlert} tone="danger" />
-        <AuthHeading title="Reset link missing" description="Open the link from your email again, or request a new one." />
+        <AuthHeading eyebrow="Account recovery" title="Reset link missing" description="Open the link from your email again, or request a new one." />
         <Button asChild size="lg" className="w-full"><Link href="/forgot-password">Request a new link</Link></Button>
         <BackToLogin />
       </div>
@@ -96,7 +107,7 @@ export function ResetPasswordForm() {
     return (
       <div>
         <StatusIcon icon={CircleCheck} tone="success" />
-        <AuthHeading title="Password updated" description="For your security we've signed you out of every device. Sign in with your new password." />
+        <AuthHeading eyebrow="Account recovery · complete" title="Password updated" description="For your security we've signed you out of every device. Sign in with your new password." />
         <Button size="lg" className="w-full" onClick={() => router.push("/login")}>Continue to sign in</Button>
       </div>
     );
@@ -113,20 +124,26 @@ export function ResetPasswordForm() {
   return (
     <div>
       <StatusIcon icon={KeyRound} />
-      <AuthHeading title="Choose a new password" description="Make it at least 8 characters with letters and numbers." />
+      <AuthHeading eyebrow="Account recovery" title="Choose a new password" description="Make it at least 8 characters with letters and numbers." />
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         {error && (
           <InlineAlert variant="danger" icon={ShieldAlert}>
             {error} <Link href="/forgot-password" className="font-semibold underline">Request a new link</Link>
           </InlineAlert>
         )}
-        <FormField label="New password" htmlFor="password" error={errors.password?.message}>
-          <PasswordInput id="password" autoComplete="new-password" invalid={!!errors.password} {...register("password")} />
-        </FormField>
-        <StrengthMeter value={watch("password")} />
-        <FormField label="Confirm new password" htmlFor="confirm" error={errors.confirm?.message}>
-          <PasswordInput id="confirm" autoComplete="new-password" invalid={!!errors.confirm} {...register("confirm")} />
-        </FormField>
+        <TerminalField>
+          <FormField label="New password" htmlFor="password" error={errors.password?.message}>
+            <PasswordInput id="password" autoComplete="new-password" invalid={!!errors.password} {...register("password")} />
+          </FormField>
+          <div className="mt-3">
+            <StrengthMeter value={watch("password")} />
+          </div>
+        </TerminalField>
+        <TerminalField>
+          <FormField label="Confirm new password" htmlFor="confirm" error={errors.confirm?.message}>
+            <PasswordInput id="confirm" autoComplete="new-password" invalid={!!errors.confirm} {...register("confirm")} />
+          </FormField>
+        </TerminalField>
         <Button type="submit" size="lg" className="w-full" loading={isSubmitting}>Update password</Button>
       </form>
     </div>

@@ -36,7 +36,7 @@ export function InviteView() {
     return (
       <div>
         <StatusIcon icon={ShieldAlert} tone="danger" />
-        <AuthHeading title="Invitation not found" description="This invitation link is invalid, was revoked, or has already been used. Ask your team admin to send a new one." />
+        <AuthHeading eyebrow="Team invitation" title="Invitation not found" description="This invitation link is invalid, was revoked, or has already been used. Ask your team admin to send a new one." />
         <Button asChild variant="outline" size="lg" className="w-full"><Link href="/login">Go to sign in</Link></Button>
       </div>
     );
@@ -66,15 +66,16 @@ export function InviteView() {
   return (
     <div>
       <StatusIcon icon={UserPlus} />
-      <AuthHeading title={`Join ${inv.organization_name}`} description="You've been invited to collaborate on ReviewPilot AI." />
-      <div className="mb-6 rounded-2xl border border-border bg-background-subtle p-4">
+      <AuthHeading eyebrow="Team invitation" title={`Join ${inv.organization_name}`} description="You've been invited to collaborate on ReviewPilot AI." />
+      <div className="mb-6 rounded-lg border border-border-strong bg-card/70 p-4 hairline-top">
+        <p className="micro-label mb-3">Workspace</p>
         <div className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-[linear-gradient(135deg,var(--primary),var(--blue))] text-white"><Building2 className="size-5" /></span>
+          <span className="flex size-10 items-center justify-center rounded-md border border-[color-mix(in_oklab,var(--primary)_35%,transparent)] bg-primary-soft text-primary"><Building2 className="size-5" /></span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[14px] font-semibold">{inv.organization_name}</p>
-            <p className="truncate text-xs text-muted-foreground">Invited: {inv.email}</p>
+            <p className="truncate font-mono text-[11px] text-muted-foreground">Invited: {inv.email}</p>
           </div>
-          <Badge variant="primary">{titleCase(inv.role)}</Badge>
+          <Badge variant="primary" mono size="sm">{titleCase(inv.role)}</Badge>
         </div>
       </div>
       {inv.expired ? (

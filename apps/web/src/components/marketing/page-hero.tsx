@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Eyebrow, PlusMarks, ink } from "./primitives";
+import { CoordLabel, Eyebrow, Glow } from "./primitives";
 import { cn } from "@/lib/utils";
 
 export function PageHero({
@@ -8,22 +8,44 @@ export function PageHero({
   description,
   children,
   className,
+  aside,
+  path,
+  meta,
 }: {
   eyebrow: string;
   title: React.ReactNode;
   description?: React.ReactNode;
   children?: React.ReactNode;
   className?: string;
+  /** Optional visual rendered to the right on large screens. */
+  aside?: React.ReactNode;
+  /** Breadcrumb-like path shown in the top rule, e.g. "solutions / clinics". */
+  path?: string;
+  meta?: string;
 }) {
   return (
-    <section className={cn("relative overflow-hidden px-5 pb-14 pt-14 sm:px-8 sm:pt-20 lg:px-12", className)}>
-      <div className="bg-crosshair absolute inset-0" aria-hidden />
-      <PlusMarks className="hidden md:block" points={[["16%", "60px"], ["84%", "60px"], ["10%", "85%"], ["90%", "85%"]]} />
-      <div className="relative mx-auto max-w-3xl text-center">
-        <Eyebrow>{eyebrow}</Eyebrow>
-        <h1 className={cn("mt-5 text-balance text-[38px] font-bold leading-[1.02] tracking-[-0.045em] sm:text-[56px]", ink)}>{title}</h1>
-        {description && <p className="mx-auto mt-5 max-w-2xl text-pretty text-[16px] leading-relaxed text-foreground-soft sm:text-[17px]">{description}</p>}
-        {children && <div className="mt-8">{children}</div>}
+    <section className={cn("relative overflow-hidden px-5 sm:px-8 lg:px-12", className)}>
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 bg-tech-grid-fade opacity-90" />
+        <Glow className="right-[-10%] top-[-30%] size-[640px] opacity-60" />
+        <div className="absolute inset-0 bg-noise" />
+      </div>
+      <div className="relative mx-auto max-w-6xl">
+        <div className="flex items-center justify-between border-b border-border/70 py-3">
+          <CoordLabel>
+            reviewpilot.ai <span className="text-border-strong">/</span> <span className="text-foreground-soft">{path ?? eyebrow.toLowerCase()}</span>
+          </CoordLabel>
+          {meta && <CoordLabel className="hidden sm:inline">{meta}</CoordLabel>}
+        </div>
+        <div className={cn("grid gap-12 pb-16 pt-14 sm:pb-20 sm:pt-20", aside && "items-center lg:grid-cols-12 lg:gap-10")}>
+          <div className={cn(aside ? "lg:col-span-6" : "max-w-3xl")}>
+            <Eyebrow>{eyebrow}</Eyebrow>
+            <h1 className="mt-6 text-balance text-[40px] font-semibold leading-[1.0] tracking-[-0.045em] text-foreground sm:text-[56px] lg:text-[62px]">{title}</h1>
+            {description && <p className="mt-6 max-w-2xl text-pretty text-[16px] leading-relaxed text-foreground-soft sm:text-[17.5px]">{description}</p>}
+            {children && <div className="mt-9">{children}</div>}
+          </div>
+          {aside && <div className="relative lg:col-span-6">{aside}</div>}
+        </div>
       </div>
     </section>
   );
@@ -37,6 +59,7 @@ export function Split({
   points,
   visual,
   reverse,
+  index,
 }: {
   id?: string;
   eyebrow: string;
@@ -45,26 +68,28 @@ export function Split({
   points: string[];
   visual: React.ReactNode;
   reverse?: boolean;
+  index?: string;
 }) {
   return (
-    <section id={id} className="scroll-mt-24 px-5 py-16 sm:px-8 sm:py-20 lg:px-12">
-      <div className={cn("mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2", reverse && "lg:[&>*:first-child]:order-2")}>
-        <div>
-          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-primary">{eyebrow}</p>
-          <h2 className={cn("mt-3 text-balance text-[30px] font-semibold leading-[1.1] tracking-[-0.035em] sm:text-[38px]", ink)}>{title}</h2>
-          <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">{body}</p>
-          <ul className="mt-6 space-y-3">
+    <section id={id} className="relative scroll-mt-32 px-5 py-20 sm:px-8 sm:py-24 lg:px-12">
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-px max-w-6xl bg-[linear-gradient(90deg,transparent,var(--border-strong)_20%,var(--border-strong)_80%,transparent)]" />
+      <div className={cn("mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-12 lg:gap-14", reverse && "lg:[&>*:first-child]:order-2")}>
+        <div className="lg:col-span-5">
+          <Eyebrow index={index}>{eyebrow}</Eyebrow>
+          <h2 className="mt-5 text-balance text-[30px] font-semibold leading-[1.06] tracking-[-0.035em] text-foreground sm:text-[38px]">{title}</h2>
+          <p className="mt-5 text-[15px] leading-relaxed text-muted-foreground">{body}</p>
+          <ul className="mt-7 divide-y divide-border border-y border-border">
             {points.map((p) => (
-              <li key={p} className="flex gap-3 text-[14px] text-foreground-soft">
-                <span className="mt-[7px] size-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+              <li key={p} className="flex gap-3 py-3 text-[14px] leading-relaxed text-foreground-soft">
+                <span className="mt-[9px] h-px w-3 shrink-0 bg-primary" aria-hidden />
                 {p}
               </li>
             ))}
           </ul>
         </div>
-        <div className="relative">
-          <div className="absolute -inset-4 -z-10 rounded-[32px] bg-[radial-gradient(ellipse_at_center,rgba(124,92,255,0.12),transparent_70%)]" aria-hidden />
-          {visual}
+        <div className="relative lg:col-span-7">
+          <div className="pointer-events-none absolute -inset-8 bg-[radial-gradient(ellipse_at_center,color-mix(in_oklab,var(--cyan)_9%,transparent),transparent_70%)]" aria-hidden />
+          <div className="relative">{visual}</div>
         </div>
       </div>
     </section>

@@ -2,7 +2,7 @@
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { LoaderCircle } from "lucide-react";
 import { LogoMark } from "@/components/brand/logo";
 import { ErrorState } from "@/components/ui/states";
@@ -18,9 +18,14 @@ const STEP_COMPONENTS = [WelcomeStep, BusinessStep, LocationStep, GoogleStep, Co
 
 function Loading({ label = "Preparing your workspace…" }: { label?: string }) {
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background">
-      <LogoMark size={40} className="animate-pulse" />
-      <p className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" /> {label}</p>
+    <div className="relative flex min-h-dvh flex-col items-center justify-center gap-5 overflow-hidden bg-background">
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-tech-grid-fade" />
+      <span className="tech-corners relative flex size-16 items-center justify-center rounded-md border border-border-strong bg-card">
+        <LogoMark size={36} className="motion-safe:animate-pulse" />
+      </span>
+      <p className="relative flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+        <LoaderCircle className="size-3.5 animate-spin text-primary" /> {label}
+      </p>
     </div>
   );
 }
@@ -126,12 +131,18 @@ export function OnboardingWizard() {
   return (
     <div className="flex min-h-dvh bg-background">
       <Rail step={effectiveStep} maxReached={org ? maxReached : Math.min(maxReached, 2)} onJump={go} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-center justify-between gap-4 px-5 pt-5 sm:px-10">
-          <div className="flex-1"><MobileProgress step={effectiveStep} /></div>
+      <div className="relative flex min-w-0 flex-1 flex-col">
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-tech-grid-fade opacity-70" />
+        <div className="relative flex items-center justify-between gap-4 border-b border-border px-5 py-3 sm:px-10 lg:h-16 lg:py-0">
+          <div className="flex-1">
+            <MobileProgress step={effectiveStep} />
+            <p className="hidden font-mono text-[10.5px] uppercase tracking-[0.16em] text-subtle-foreground lg:block">
+              Workspace setup <span className="text-border-strong">/</span> <span className="text-foreground-soft">{ctx.org?.name ?? "New organization"}</span>
+            </p>
+          </div>
           <TopActions />
         </div>
-        <main className="mx-auto w-full max-w-[760px] flex-1 px-5 pb-16 pt-8 sm:px-10 lg:pt-14">
+        <main className="relative mx-auto w-full max-w-[780px] flex-1 px-5 pb-16 pt-8 sm:px-10 lg:pt-14">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={effectiveStep}

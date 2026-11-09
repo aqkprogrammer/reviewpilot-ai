@@ -1,154 +1,216 @@
 "use client";
-import * as React from "react";
+import Link from "next/link";
 import { format, parseISO } from "date-fns";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Star } from "lucide-react";
+import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { ArrowUpRight, Star } from "lucide-react";
 import { ChartTooltip, GradientDefs, Legend, axisProps, gridProps } from "@/components/app/chart-kit";
+import { StatusBadge } from "@/components/app/status-badge";
+import { SegmentMeter } from "@/components/ui/tech";
+import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { cn, formatNumber, formatPercent } from "@/lib/utils";
+import { SegBar, TickRing } from "./kit";
 import type { Overview } from "./types";
 
+/* Review growth — new reviews (area) + running total (line, right axis). */
 export function ReviewGrowthChart({ data, height = 260 }: { data: Overview["series"]; height?: number }) {
   const fmt = (d: string | number | undefined) => (typeof d === "string" ? format(parseISO(d), "d MMM") : "");
+  const newTotal = data.reduce((a, d) => a + d.reviews, 0);
+  const last = data[data.length - 1]?.cumulative;
+  const peak = data.reduce<{ date: string; reviews: number } | null>((m, d) => (!m || d.reviews > m.reviews ? d : m), null);
   return (
-    <div style={{ height }} className="w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 8, right: 4, left: -18, bottom: 0 }}>
-          <GradientDefs id="g-reviews" color="var(--chart-1)" />
-          <defs>
-            <linearGradient id="g-cumulative" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--chart-2)" stopOpacity={0.12} />
-              <stop offset="100%" stopColor="var(--chart-2)" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid {...gridProps} />
-          <XAxis dataKey="date" {...axisProps} tickFormatter={fmt} minTickGap={28} />
-          <YAxis yAxisId="l" {...axisProps} allowDecimals={false} width={44} />
-          <YAxis yAxisId="r" orientation="right" {...axisProps} hide />
-          <Tooltip content={<ChartTooltip labelFormatter={(l) => (typeof l === "string" ? format(parseISO(l), "EEE, d MMM yyyy") : l)} />} cursor={{ stroke: "var(--border-strong)" }} />
-          <Area yAxisId="r" type="monotone" dataKey="cumulative" name="Total reviews" stroke="var(--chart-2)" strokeWidth={1.5} strokeDasharray="4 4" fill="url(#g-cumulative)" />
-          <Area yAxisId="l" type="monotone" dataKey="reviews" name="New reviews" stroke="var(--chart-1)" strokeWidth={2.25} fill="url(#g-reviews)" activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--card)" }} />
-        </AreaChart>
-      </ResponsiveContainer>
+    <div>
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <Legend items={[{ label: "New reviews", color: "var(--chart-1)" }, { label: "Running total", color: "var(--chart-2)" }]} />
+        <div className="flex gap-5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-subtle-foreground">
+          <span>Period <span className="ml-1 text-foreground tabular">{formatNumber(newTotal)}</span></span>
+          <span>Total <span className="ml-1 text-foreground tabular">{formatNumber(last)}</span></span>
+          {peak && peak.reviews > 0 && <span className="hidden sm:inline">Peak <span className="ml-1 text-foreground tabular">{peak.reviews}</span> · {format(parseISO(peak.date), "d MMM")}</span>}
+        </div>
+      </div>
+      <div style={{ height }} className="w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={data} margin={{ top: 8, right: 0, left: -18, bottom: 0 }}>
+            <GradientDefs id="g-reviews" color="var(--chart-1)" />
+            <CartesianGrid {...gridProps} />
+            <XAxis dataKey="date" {...axisProps} tickFormatter={fmt} minTickGap={32} />
+            <YAxis yAxisId="l" {...axisProps} allowDecimals={false} width={44} />
+            <YAxis yAxisId="r" orientation="right" {...axisProps} width={36} allowDecimals={false} />
+            <Tooltip content={<ChartTooltip labelFormatter={(l) => (typeof l === "string" ? format(parseISO(l), "EEE, d MMM yyyy") : l)} />} cursor={{ stroke: "var(--border-strong)", strokeDasharray: "2 3" }} />
+            <Area yAxisId="l" type="monotone" dataKey="reviews" name="New reviews" stroke="var(--chart-1)" strokeWidth={1.75} fill="url(#g-reviews)" activeDot={{ r: 3.5, strokeWidth: 2, stroke: "var(--card)" }} />
+            <Line yAxisId="r" type="monotone" dataKey="cumulative" name="Running total" stroke="var(--chart-2)" strokeWidth={1.5} strokeDasharray="4 4" dot={false} activeDot={{ r: 3, strokeWidth: 2, stroke: "var(--card)" }} />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
 
-const RATING_COLORS: Record<number, string> = { 5: "var(--success)", 4: "#22c55e", 3: "var(--warning)", 2: "#fb923c", 1: "var(--danger)" };
+const RATING_TONE: Record<number, string> = { 5: "var(--chart-1)", 4: "var(--chart-2)", 3: "var(--amber)", 2: "var(--danger)", 1: "var(--danger)" };
 
+/* Rating distribution as segmented bars. */
 export function RatingBars({ data }: { data: Overview["ratings"] }) {
   const max = Math.max(1, ...data.map((d) => d.count));
+  const total = data.reduce((a, d) => a + d.count, 0);
+  const avg = total ? data.reduce((a, d) => a + d.rating * d.count, 0) / total : null;
+  const sorted = [...data].sort((a, b) => b.rating - a.rating);
   return (
-    <ul className="space-y-3">
-      {data.map((r) => (
-        <li key={r.rating} className="flex items-center gap-3">
-          <span className="flex w-8 shrink-0 items-center gap-1 text-[13px] font-medium tabular text-foreground">
-            {r.rating}
-            <Star className="size-3 fill-[#f5a524] text-[#f5a524]" />
-          </span>
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-            <div className="h-full rounded-full transition-[width] duration-700 ease-out" style={{ width: `${(r.count / max) * 100}%`, background: RATING_COLORS[r.rating] }} />
-          </div>
-          <span className="w-16 shrink-0 text-right text-xs tabular text-muted-foreground">
-            <span className="font-semibold text-foreground">{formatNumber(r.count)}</span> · {formatPercent(r.share, 0)}
-          </span>
-        </li>
-      ))}
-    </ul>
+    <div>
+      <ul className="space-y-3.5">
+        {sorted.map((r) => (
+          <li key={r.rating} className="grid grid-cols-[34px_minmax(0,1fr)_72px] items-center gap-3">
+            <span className="flex items-center gap-1 font-mono text-[12px] tabular text-foreground">
+              {r.rating}
+              <Star className="size-3 fill-amber text-amber" aria-hidden />
+            </span>
+            <SegBar value={r.count / max} color={RATING_TONE[r.rating]} height={9} />
+            <span className="text-right font-mono text-[11px] tabular text-muted-foreground">
+              <span className="text-foreground">{formatNumber(r.count)}</span> · {formatPercent(r.share, 0)}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-5 flex items-center justify-between border-t border-border pt-3 font-mono text-[10.5px] uppercase tracking-[0.1em] text-subtle-foreground">
+        <span>{formatNumber(total)} reviews in period</span>
+        <span>Mean <span className="text-foreground tabular">{avg ? avg.toFixed(2) : "—"}</span></span>
+      </div>
+    </div>
   );
 }
 
 const SENTIMENT_COLORS: Record<string, string> = {
   positive: "var(--success)",
   neutral: "var(--chart-2)",
-  mixed: "var(--warning)",
+  mixed: "var(--amber)",
   negative: "var(--danger)",
-  unclassified: "var(--border-strong)",
+  unclassified: "var(--chart-5)",
 };
+const SENT_ORDER = ["positive", "neutral", "mixed", "negative", "unclassified"];
 
-export function SentimentDonut({ data }: { data: Overview["sentiment"] }) {
+/* Sentiment as a segmented tick ring. */
+export function SentimentRing({ data }: { data: Overview["sentiment"] }) {
   const total = data.reduce((s, d) => s + d.count, 0);
-  const order = ["positive", "neutral", "mixed", "negative", "unclassified"];
-  const sorted = [...data].sort((a, b) => order.indexOf(a.sentiment) - order.indexOf(b.sentiment));
+  const sorted = [...data].sort((a, b) => SENT_ORDER.indexOf(a.sentiment) - SENT_ORDER.indexOf(b.sentiment));
   const positive = data.find((d) => d.sentiment === "positive")?.count ?? 0;
   return (
-    <div className="flex flex-col items-center gap-5 sm:flex-row lg:flex-col xl:flex-row">
-      <div className="relative size-40 shrink-0">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie data={sorted} dataKey="count" nameKey="sentiment" innerRadius="70%" outerRadius="100%" paddingAngle={total ? 2 : 0} stroke="none" startAngle={90} endAngle={-270}>
-              {sorted.map((d) => (
-                <Cell key={d.sentiment} fill={SENTIMENT_COLORS[d.sentiment] ?? "var(--muted)"} />
-              ))}
-            </Pie>
-            <Tooltip content={<ChartTooltip />} />
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-semibold tabular tracking-tight">{total ? formatPercent(positive / total, 0) : "—"}</span>
-          <span className="text-[11px] text-muted-foreground">positive</span>
-        </div>
-      </div>
-      <ul className="w-full space-y-2.5">
+    <div className="flex flex-col items-center gap-6 sm:flex-row lg:flex-col 2xl:flex-row">
+      <TickRing
+        label={total ? `${Math.round((positive / total) * 100)}% positive sentiment` : "No sentiment data"}
+        data={sorted.map((d) => ({ key: d.sentiment, value: d.count, color: SENTIMENT_COLORS[d.sentiment] ?? "var(--chart-5)" }))}
+      >
+        <span className="text-[26px] font-semibold leading-none tracking-[-0.03em] tabular">{total ? formatPercent(positive / total, 0) : "—"}</span>
+        <span className="micro-label mt-1.5">Positive</span>
+      </TickRing>
+      <ul className="w-full space-y-2">
         {sorted.map((d) => (
-          <li key={d.sentiment} className="flex items-center justify-between text-[13px]">
+          <li key={d.sentiment} className="grid grid-cols-[minmax(0,1fr)_auto_44px] items-center gap-3 border-b border-border/70 pb-2 text-[12.5px] last:border-0">
             <span className="flex items-center gap-2 capitalize text-muted-foreground">
-              <span className="size-2.5 rounded-[3px]" style={{ background: SENTIMENT_COLORS[d.sentiment] }} />
+              <span className="h-2.5 w-[3px] rounded-[1px]" style={{ background: SENTIMENT_COLORS[d.sentiment] }} />
               {d.sentiment}
             </span>
-            <span className="tabular font-medium">{formatNumber(d.count)}</span>
+            <span className="font-mono text-[12px] tabular text-foreground">{formatNumber(d.count)}</span>
+            <span className="text-right font-mono text-[10.5px] tabular text-subtle-foreground">{total ? formatPercent(d.count / total, 0) : "—"}</span>
           </li>
         ))}
+        {!sorted.length && <li className="text-[12.5px] text-muted-foreground">No classified reviews in this period.</li>}
       </ul>
     </div>
   );
 }
 
-export function CampaignBars({ data, height = 220 }: { data: Overview["campaigns"]; height?: number }) {
-  const rows = data.filter((c) => c.channel !== "qr").map((c) => ({ ...c, short: c.name.length > 16 ? `${c.name.slice(0, 15)}…` : c.name }));
+/* Campaign performance: sent vs Google clicks per campaign, as paired instrument bars. */
+export function CampaignPerformance({ data }: { data: Overview["campaigns"] }) {
+  const rows = data.filter((c) => c.channel !== "qr").slice(0, 6);
+  const max = Math.max(1, ...rows.map((r) => r.sent));
   return (
     <div>
-      <Legend className="mb-3" items={[{ label: "Sent", color: "var(--chart-1)" }, { label: "Google clicks", color: "var(--chart-4)" }]} />
-      <div style={{ height }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={rows} margin={{ top: 4, right: 0, left: -22, bottom: 0 }} barGap={4}>
-            <CartesianGrid {...gridProps} />
-            <XAxis dataKey="short" {...axisProps} interval={0} tick={{ fontSize: 10.5 }} />
-            <YAxis {...axisProps} allowDecimals={false} />
-            <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--muted)", opacity: 0.5 }} />
-            <Bar dataKey="sent" name="Sent" fill="var(--chart-1)" radius={[5, 5, 0, 0]} maxBarSize={22} />
-            <Bar dataKey="google_clicks" name="Google clicks" fill="var(--chart-4)" radius={[5, 5, 0, 0]} maxBarSize={22} />
-          </BarChart>
-        </ResponsiveContainer>
+      <div className="mb-3 grid grid-cols-[minmax(0,1fr)_64px] gap-4 border-b border-border pb-2 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_64px]">
+        <span className="micro-label">Campaign</span>
+        <span className="micro-label hidden sm:block">Sent / Google clicks</span>
+        <span className="micro-label text-right">CTR</span>
       </div>
+      <ul className="space-y-1">
+        {rows.map((c) => (
+          <li key={c.campaign_id}>
+            <Link href={`/app/campaigns/${c.campaign_id}`} className="group -mx-2 grid grid-cols-[minmax(0,1fr)_64px] items-center gap-x-4 gap-y-2 rounded-lg px-2 py-2.5 outline-none transition hover:bg-surface-hover/60 focus-visible:ring-[1.5px] focus-visible:ring-ring sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_64px]">
+              <span className="col-start-1 row-start-1 min-w-0">
+                <span className="flex items-center gap-2">
+                  <span className="truncate text-[13px] font-medium text-foreground group-hover:text-primary">{c.name}</span>
+                  <StatusBadge status={c.status} />
+                </span>
+                <span className="mt-0.5 block font-mono text-[10.5px] uppercase tracking-[0.08em] text-subtle-foreground">{c.channel} · {formatNumber(c.delivered)} delivered{c.failed ? ` · ${c.failed} failed` : ""}</span>
+              </span>
+              <span className="col-span-2 col-start-1 row-start-2 space-y-1.5 sm:col-span-1 sm:col-start-2 sm:row-start-1">
+                <span className="flex items-center gap-2">
+                  <span className="h-1.5 rounded-[2px] transition-[width] duration-700" style={{ width: `${(c.sent / max) * 100}%`, minWidth: c.sent ? 3 : 0, background: "var(--chart-1)" }} />
+                  <span className="font-mono text-[10.5px] tabular text-muted-foreground">{formatNumber(c.sent)}</span>
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="h-1.5 rounded-[2px] transition-[width] duration-700" style={{ width: `${(c.google_clicks / max) * 100}%`, minWidth: c.google_clicks ? 3 : 0, background: "var(--chart-4)" }} />
+                  <span className="font-mono text-[10.5px] tabular text-muted-foreground">{formatNumber(c.google_clicks)}</span>
+                </span>
+              </span>
+              <span className="col-start-2 row-start-1 text-right font-mono text-[14px] font-medium tabular text-foreground sm:col-start-3">{c.conversion_rate == null ? "—" : formatPercent(c.conversion_rate, 0)}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <Legend className="mt-3 border-t border-border pt-3" items={[{ label: "Sent", color: "var(--chart-1)" }, { label: "Google clicks", color: "var(--chart-4)" }]} />
     </div>
   );
 }
 
+/* Location performance table. */
 export function LocationTable({ data }: { data: Overview["locations"] }) {
   const max = Math.max(1, ...data.map((l) => l.reviews));
   return (
-    <div className="divide-y divide-border">
-      {data.map((l, i) => (
-        <div key={l.location_id} className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-2 py-3 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto]">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-semibold", ["bg-primary-soft text-primary-soft-foreground", "bg-blue-soft text-blue", "bg-purple-soft text-purple", "bg-cyan-soft text-cyan"][i % 4])}>
-              {l.name[0]}
-            </span>
-            <span className="truncate text-[13px] font-medium">{l.name}</span>
-          </div>
-          <div className="hidden items-center gap-2 sm:flex">
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-primary" style={{ width: `${(l.reviews / max) * 100}%` }} />
-            </div>
-            <span className="w-8 text-right text-xs tabular text-muted-foreground">{l.reviews}</span>
-          </div>
-          <span className="flex items-center gap-1 text-[13px] font-semibold tabular">
-            <Star className="size-3.5 fill-[#f5a524] text-[#f5a524]" />
-            {l.avg_rating?.toFixed(2) ?? "—"}
-          </span>
-          <span className="hidden w-20 text-right text-xs text-muted-foreground sm:block">{formatPercent(l.response_rate, 0)} replied</span>
-        </div>
-      ))}
-    </div>
+    <Table className="min-w-[620px]">
+      <THead>
+        <TR className="hover:bg-transparent">
+          <TH>Location</TH>
+          <TH>Reviews</TH>
+          <TH>Avg rating</TH>
+          <TH>Reply rate</TH>
+          <TH className="text-right">Requests</TH>
+        </TR>
+      </THead>
+      <TBody>
+        {data.map((l, i) => {
+          const rr = l.response_rate ?? 0;
+          return (
+            <TR key={l.location_id}>
+              <TD>
+                <span className="flex items-center gap-3">
+                  <span className="font-mono text-[10.5px] text-subtle-foreground">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="truncate font-medium text-foreground">{l.name}</span>
+                </span>
+              </TD>
+              <TD>
+                <span className="flex items-center gap-3">
+                  <span className="w-24"><SegBar value={l.reviews / max} height={8} /></span>
+                  <span className="font-mono text-[12px] tabular text-foreground">{formatNumber(l.reviews)}</span>
+                </span>
+              </TD>
+              <TD>
+                <span className="inline-flex items-center gap-1.5 font-mono text-[12.5px] tabular text-foreground">
+                  <Star className="size-3.5 fill-amber text-amber" aria-hidden />
+                  {l.avg_rating?.toFixed(2) ?? "—"}
+                </span>
+              </TD>
+              <TD>
+                <span className="flex items-center gap-2.5">
+                  <SegmentMeter value={rr * 100} segments={10} tone={rr >= 0.7 ? "success" : rr >= 0.4 ? "warning" : "danger"} />
+                  <span className="font-mono text-[11.5px] tabular text-muted-foreground">{formatPercent(l.response_rate, 0)}</span>
+                </span>
+              </TD>
+              <TD className="text-right">
+                <Link href="/app/review-requests" className={cn("inline-flex items-center gap-1 font-mono text-[12px] tabular text-foreground-soft hover:text-primary")}>
+                  {formatNumber(l.requests_sent)}<ArrowUpRight className="size-3 opacity-50" />
+                </Link>
+              </TD>
+            </TR>
+          );
+        })}
+      </TBody>
+    </Table>
   );
 }

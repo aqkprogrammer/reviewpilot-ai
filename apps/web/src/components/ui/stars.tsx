@@ -8,7 +8,7 @@ export function Stars({ rating, size = 14, className }: { rating: number; size?:
         <Star
           key={i}
           style={{ width: size, height: size }}
-          className={cn(i <= Math.round(rating) ? "fill-[#f5a524] text-[#f5a524]" : "fill-border text-border")}
+          className={cn(i <= Math.round(rating) ? "fill-amber text-amber" : "fill-border text-border")}
           strokeWidth={1.5}
           aria-hidden
         />

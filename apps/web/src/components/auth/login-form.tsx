@@ -20,6 +20,8 @@ import { AuthHeading } from "./auth-shell";
 import { OAUTH_ERRORS, postAuthRoute, safeNext } from "./auth-utils";
 import { GoogleButton, OrDivider } from "./google-button";
 import { PasswordInput } from "./password-input";
+import { TerminalField, TerminalPanel } from "./terminal";
+import { StatusDot } from "@/components/ui/tech";
 
 const schema = z.object({
   email: z.string().trim().min(1, "Enter your email").email("Enter a valid email address"),
@@ -59,44 +61,57 @@ export function LoginForm() {
 
   return (
     <>
-      <AuthHeading title="Welcome back" description="Sign in to manage reviews, campaigns and customer feedback." />
+      <AuthHeading eyebrow="Sign in" title="Welcome back" description="Sign in to manage reviews, campaigns and customer feedback." />
       {oauth && <InlineAlert variant="warning" icon={ShieldAlert} title={oauth.title} className="mb-6">{oauth.body}</InlineAlert>}
 
-      <GoogleButton next={safeNext(next, "")} />
-      <OrDivider />
+      <TerminalPanel
+        label="Workspace access"
+        status={
+          <span className="inline-flex items-center gap-1.5">
+            <StatusDot tone="signal" /> Ready
+          </span>
+        }
+      >
+        <GoogleButton next={safeNext(next, "")} />
+        <OrDivider />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-        {formError && (
-          <InlineAlert variant="danger" icon={ShieldAlert}>
-            {formError.message}
-            {formError.code === "login_locked" && (
-              <> <Link href="/forgot-password" className="font-semibold underline">Reset your password</Link></>
-            )}
-          </InlineAlert>
-        )}
-        <FormField label="Email" htmlFor="email" error={errors.email?.message}>
-          <Input id="email" type="email" autoComplete="email" inputMode="email" placeholder="you@business.com" leading={<Mail />} invalid={!!errors.email} {...register("email")} />
-        </FormField>
-        <FormField
-          label="Password"
-          htmlFor="password"
-          error={errors.password?.message}
-          labelAction={<Link href="/forgot-password" className="text-[12.5px] font-medium text-primary hover:underline">Forgot password?</Link>}
-        >
-          <PasswordInput id="password" autoComplete="current-password" placeholder="Your password" invalid={!!errors.password} {...register("password")} />
-        </FormField>
-        <label className="flex cursor-pointer items-center gap-2.5 text-[13px] text-foreground-soft">
-          <Checkbox checked={watch("remember_me")} onCheckedChange={(v) => setValue("remember_me", v === true)} />
-          Keep me signed in for 30 days
-        </label>
-        <Button type="submit" size="lg" className="w-full" loading={isSubmitting}>
-          Sign in {!isSubmitting && <ArrowRight />}
-        </Button>
-      </form>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+          {formError && (
+            <InlineAlert variant="danger" icon={ShieldAlert}>
+              {formError.message}
+              {formError.code === "login_locked" && (
+                <> <Link href="/forgot-password" className="font-semibold underline">Reset your password</Link></>
+              )}
+            </InlineAlert>
+          )}
+          <TerminalField index="01">
+            <FormField label="Email" htmlFor="email" error={errors.email?.message}>
+              <Input id="email" type="email" autoComplete="email" inputMode="email" placeholder="you@business.com" leading={<Mail />} invalid={!!errors.email} {...register("email")} />
+            </FormField>
+          </TerminalField>
+          <TerminalField index="02">
+            <FormField
+              label="Password"
+              htmlFor="password"
+              error={errors.password?.message}
+              labelAction={<Link href="/forgot-password" className="text-[12.5px] font-medium text-primary underline-offset-4 hover:underline">Forgot password?</Link>}
+            >
+              <PasswordInput id="password" autoComplete="current-password" placeholder="Your password" invalid={!!errors.password} {...register("password")} />
+            </FormField>
+          </TerminalField>
+          <label className="flex cursor-pointer items-center gap-2.5 text-[13px] text-foreground-soft">
+            <Checkbox checked={watch("remember_me")} onCheckedChange={(v) => setValue("remember_me", v === true)} />
+            Keep me signed in for 30 days
+          </label>
+          <Button type="submit" variant="gradient" size="lg" className="w-full" loading={isSubmitting}>
+            Sign in {!isSubmitting && <ArrowRight />}
+          </Button>
+        </form>
+      </TerminalPanel>
 
-      <p className="mt-8 text-center text-[13.5px] text-muted-foreground">
+      <p className="mt-8 border-t border-border pt-6 text-center text-[13.5px] text-muted-foreground">
         New to ReviewPilot?{" "}
-        <Link href={`/signup${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="font-semibold text-primary hover:underline">Create an account</Link>
+        <Link href={`/signup${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="font-semibold text-primary underline-offset-4 hover:underline">Create an account</Link>
       </p>
     </>
   );

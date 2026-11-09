@@ -1,10 +1,10 @@
-/** Design tokens exposed to TypeScript (charts, canvas, inline styles). */
+/** Design tokens exposed to TypeScript (charts, canvas, inline styles). Mirrors tokens.css. */
 export const chartColors = {
-  primary: "var(--chart-1)",
-  blue: "var(--chart-2)",
-  purple: "var(--chart-3)",
-  cyan: "var(--chart-4)",
-  amber: "var(--chart-5)",
+  cyan: "var(--chart-1)",
+  ice: "var(--chart-2)",
+  mint: "var(--chart-3)",
+  amber: "var(--chart-4)",
+  steel: "var(--chart-5)",
   grid: "var(--chart-grid)",
   success: "var(--success)",
   warning: "var(--warning)",
@@ -15,7 +15,7 @@ export const ratingColors: Record<number, string> = {
   5: "var(--success)",
   4: "var(--chart-2)",
   3: "var(--warning)",
-  2: "#fb923c",
+  2: "color-mix(in oklab, var(--warning) 50%, var(--danger))",
   1: "var(--danger)",
 };
 

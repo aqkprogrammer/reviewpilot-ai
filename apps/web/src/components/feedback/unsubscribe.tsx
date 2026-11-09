@@ -23,25 +23,31 @@ export function Unsubscribe() {
   };
   return (
     <FeedbackShell>
-      <div className="mt-20 rounded-3xl border border-[#ebe8f4] bg-white p-7 text-center shadow-[0_12px_32px_-16px_rgb(22_17_43/0.18)]">
+      <div className="mt-20 overflow-hidden rounded-xl border border-border-strong bg-card text-center shadow-md">
+        <div className="flex items-center justify-between border-b border-border px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.14em] text-subtle-foreground">
+          <span>Message preferences</span>
+          <BellOff className="size-3.5" />
+        </div>
+        <div className="p-7">
         {state === "done" ? (
           <>
-            <CircleCheck className="mx-auto size-10 text-[#059669]" />
-            <h1 className="mt-4 text-xl font-semibold">You&apos;ve been unsubscribed</h1>
-            <p className="mt-2 text-sm leading-relaxed text-[#6e6a86]">You won&apos;t receive further review requests from this business on any channel. Unsubscribed in error? Contact the business directly.</p>
+            <span className="mx-auto flex size-12 items-center justify-center rounded-lg border border-[color-mix(in_oklab,var(--mint)_30%,transparent)] bg-mint-soft"><CircleCheck className="size-6 text-mint" /></span>
+            <h1 className="mt-5 text-xl font-semibold tracking-[-0.02em]">You&apos;ve been unsubscribed</h1>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">You won&apos;t receive further review requests from this business on any channel. Unsubscribed in error? Contact the business directly.</p>
           </>
         ) : (
           <>
-            <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-[#f3f2f9]"><BellOff className="size-5 text-[#6e6a86]" /></span>
-            <h1 className="mt-4 text-xl font-semibold">Stop review requests?</h1>
-            <p className="mt-2 text-sm leading-relaxed text-[#6e6a86]">We&apos;ll stop sending you feedback and review requests from this business on WhatsApp, email and SMS.</p>
+            <span className="mx-auto flex size-12 items-center justify-center rounded-lg border border-border-strong bg-background"><BellOff className="size-5 text-muted-foreground" /></span>
+            <h1 className="mt-5 text-xl font-semibold tracking-[-0.02em]">Stop review requests?</h1>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">We&apos;ll stop sending you feedback and review requests from this business on WhatsApp, email and SMS.</p>
             {!t && <p className="mt-4 text-sm text-danger-foreground">This unsubscribe link is incomplete.</p>}
             {state === "error" && <p className="mt-4 text-sm text-danger-foreground" role="alert">{error}</p>}
-            <Button size="lg" variant="secondary" className="mt-6 w-full rounded-2xl" disabled={!t} loading={state === "busy"} onClick={confirm}>Unsubscribe</Button>
+            <Button size="lg" variant="secondary" className="mt-6 w-full" disabled={!t} loading={state === "busy"} onClick={confirm}>Unsubscribe</Button>
           </>
         )}
+        </div>
       </div>
-      <p className="mt-6 text-center text-[11.5px] text-[#9a97b0]">ReviewPilot AI</p>
+      <p className="mt-6 text-center font-mono text-[10px] uppercase tracking-[0.14em] text-subtle-foreground">ReviewPilot AI</p>
     </FeedbackShell>
   );
 }

@@ -1,17 +1,22 @@
 "use client";
-/** Admin console building blocks (navy console look; wraps components/ui primitives). */
+/**
+ * Command-center building blocks for the Super Admin console.
+ * Token-driven only (admin-theme: graphite, ice-blue signal, amber operations) — no hex colours.
+ */
 import * as React from "react";
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Check, Copy } from "lucide-react";
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 import { api, type Query } from "@/lib/api";
-import { cn, formatCurrency, formatNumber, titleCase } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { EmptyState, ErrorState, Skeleton } from "@/components/ui/states";
+import { cn, formatCurrency, initials, titleCase } from "@/lib/utils";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { ErrorState, Skeleton } from "@/components/ui/states";
+import { AnimatedNumber, StatusDot } from "@/components/ui/tech";
+import { Tooltip } from "@/components/ui/controls";
+import { sectionMeta } from "./nav";
 
-/* ------------------------------------------------------------------ data */
+/* ================================================================== data */
 
 export function adminGet<T>(path: string, query?: Query) {
   return api.get<T>(`/admin${path}`, query, { orgId: null });
@@ -38,7 +43,10 @@ export interface AdminPage<T> {
   pages: number;
 }
 
+/* ================================================================== formatting */
+
 export const money = (minor: number | null | undefined, opts?: { compact?: boolean }) => formatCurrency(minor ?? 0, "INR", opts);
+export const moneyCompact = (minor: number) => formatCurrency(minor, "INR", { compact: true });
 
 export function relTime(iso: string | null | undefined) {
   if (!iso) return "—";
@@ -57,247 +65,277 @@ export function shortDate(iso: string | null | undefined) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
-/* ------------------------------------------------------------------ layout */
+/** "10 NOV 14:32:05" — mono timestamp for logs. */
+export function stamp(iso: string | null | undefined, seconds = true) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const date = d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" }).toUpperCase();
+  const time = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: seconds ? "2-digit" : undefined, hour12: false });
+  return `${date} ${time}`;
+}
 
-export function SectionHeader({ title, description, actions, eyebrow }: { title: string; description?: React.ReactNode; actions?: React.ReactNode; eyebrow?: string }) {
+export const shortId = (id: string | null | undefined, n = 8) => (id ? id.replace(/-/g, "").slice(0, n).toUpperCase() : "—");
+
+/* ================================================================== page chrome */
+
+/** Section header: mono index readout ("04 / 16 · REVENUE"), title, description and actions. */
+export function SectionHeader({ title, description, actions, eyebrow, meta }: { title: string; description?: React.ReactNode; actions?: React.ReactNode; eyebrow?: string; meta?: React.ReactNode }) {
+  const path = usePathname();
+  const sm = sectionMeta(path);
   return (
-    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <header className="mb-6 flex flex-col gap-4 border-b border-border pb-5 lg:flex-row lg:items-end lg:justify-between">
       <div className="min-w-0">
-        {eyebrow && <p className="mb-1.5 font-mono text-[11px] uppercase tracking-[0.14em] text-primary-soft-foreground">{eyebrow}</p>}
-        <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-foreground">{title}</h1>
-        {description && <p className="mt-1 max-w-2xl text-[13px] text-muted-foreground">{description}</p>}
+        <div className="mb-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          {sm && (
+            <span className="font-mono text-[10.5px] tabular tracking-[0.14em] text-primary">
+              {String(sm.index).padStart(2, "0")}<span className="text-subtle-foreground"> / {sm.total}</span>
+            </span>
+          )}
+          <span aria-hidden className="h-px w-5 bg-border-strong" />
+          <span className="micro-label">{eyebrow ?? sm?.group.group}</span>
+          {meta && <span className="micro-label hidden sm:inline">· {meta}</span>}
+        </div>
+        <h1 className="text-[22px] font-semibold leading-tight tracking-[-0.025em] text-foreground sm:text-[24px]">{title}</h1>
+        {description && <p className="mt-1.5 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">{description}</p>}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
-    </div>
+    </header>
   );
 }
 
-export function Panel({ title, description, actions, children, className, bodyClassName, flush }: {
-  title?: React.ReactNode; description?: React.ReactNode; actions?: React.ReactNode; children: React.ReactNode; className?: string; bodyClassName?: string; flush?: boolean;
+/** Instrument panel with a header rail (title · description · meta · actions). */
+export function Panel({ title, description, actions, meta, children, className, bodyClassName, flush, id }: {
+  title?: React.ReactNode; description?: React.ReactNode; actions?: React.ReactNode; meta?: React.ReactNode; children: React.ReactNode; className?: string; bodyClassName?: string; flush?: boolean; id?: string;
 }) {
   return (
-    <section className={cn("relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm", className)}>
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgb(255_255_255/0.07),transparent)]" />
-      {(title || actions) && (
-        <header className="flex items-start justify-between gap-3 px-5 pt-4">
-          <div className="min-w-0">
-            {title && <h2 className="text-[14px] font-semibold tracking-[-0.01em] text-foreground">{title}</h2>}
-            {description && <p className="mt-0.5 text-[12px] text-muted-foreground">{description}</p>}
+    <section
+      id={id}
+      className={cn(
+        "relative flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-[linear-gradient(180deg,color-mix(in_oklab,var(--card-elevated)_55%,var(--card))_0%,var(--card)_96px)] shadow-sm hairline-top",
+        className,
+      )}
+      aria-labelledby={id && title ? `${id}-title` : undefined}
+    >
+      {(title || actions || meta) && (
+        <header className="flex min-h-[50px] flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-4 py-2.5">
+          <div className="min-w-0 flex-1">
+            {title && <h2 id={id ? `${id}-title` : undefined} className="truncate text-[13.5px] font-semibold tracking-[-0.01em] text-foreground">{title}</h2>}
+            {description && <p className="truncate text-[11.5px] text-muted-foreground">{description}</p>}
           </div>
-          {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+          {meta && <span className="micro-label shrink-0 tabular">{meta}</span>}
+          {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
         </header>
       )}
-      <div className={cn(flush ? "mt-3" : "p-5", title && !flush && "pt-4", bodyClassName)}>{children}</div>
+      <div className={cn("min-w-0 flex-1", !flush && "p-4", bodyClassName)}>{children}</div>
     </section>
   );
 }
 
-const ACCENTS = {
-  blue: { line: "from-[#2f7bff] to-[#2f7bff]/0", glow: "rgb(47 123 255 / 0.22)", chip: "bg-blue-soft text-[#7eaaff]", border: "border-[#2f7bff]/35" },
-  emerald: { line: "from-[#10b981] to-[#10b981]/0", glow: "rgb(16 185 129 / 0.18)", chip: "bg-success-soft text-success-foreground", border: "border-[#10b981]/30" },
-  violet: { line: "from-[#8b5cf6] to-[#8b5cf6]/0", glow: "rgb(139 92 246 / 0.2)", chip: "bg-purple-soft text-[#b9a1ff]", border: "border-[#8b5cf6]/35" },
-  amber: { line: "from-[#f59e0b] to-[#f59e0b]/0", glow: "rgb(245 158 11 / 0.16)", chip: "bg-warning-soft text-warning-foreground", border: "border-[#f59e0b]/30" },
-  cyan: { line: "from-[#22d3ee] to-[#22d3ee]/0", glow: "rgb(34 211 238 / 0.16)", chip: "bg-cyan-soft text-[#67e8f9]", border: "border-[#22d3ee]/30" },
-  rose: { line: "from-[#f43f5e] to-[#f43f5e]/0", glow: "rgb(244 63 94 / 0.16)", chip: "bg-danger-soft text-danger-foreground", border: "border-[#f43f5e]/30" },
-} as const;
-export type Accent = keyof typeof ACCENTS;
-
-export function MetricCard({ label, value, icon: Icon, accent = "blue", delta, hint, loading }: {
-  label: string; value: React.ReactNode; icon: React.ComponentType<{ className?: string }>; accent?: Accent; delta?: number | null; hint?: React.ReactNode; loading?: boolean;
+/** Holographic instrument surface: translucent graphite, thin signal border, edge lighting, mono label rail. */
+export function HoloPanel({ label, title, meta, actions, children, className, bodyClassName }: {
+  label?: string; title?: React.ReactNode; meta?: React.ReactNode; actions?: React.ReactNode; children: React.ReactNode; className?: string; bodyClassName?: string;
 }) {
-  const a = ACCENTS[accent];
   return (
-    <div className={cn("group relative overflow-hidden rounded-2xl border bg-card px-5 pb-4 pt-5 shadow-sm transition-colors", a.border)}>
-      <div aria-hidden className={cn("absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r", a.line)} />
-      <div aria-hidden className="pointer-events-none absolute -right-10 -top-12 size-36 rounded-full blur-2xl" style={{ background: a.glow }} />
-      <div className="relative flex items-start justify-between gap-3">
-        <p className="text-[12.5px] font-medium text-foreground-soft">{label}</p>
-        <span className={cn("flex size-8 items-center justify-center rounded-full", a.chip)}>
-          <Icon className="size-4" />
-        </span>
-      </div>
-      <div className="relative mt-2 flex items-end gap-2.5">
-        {loading ? <Skeleton className="h-8 w-24" /> : <span className="font-mono text-[26px] font-semibold leading-none tracking-[-0.03em] text-foreground tabular">{value}</span>}
-        {delta !== undefined && delta !== null && !loading && (
-          <span className={cn("mb-0.5 inline-flex items-center gap-0.5 text-[11.5px] font-medium", delta >= 0 ? "text-success-foreground" : "text-danger-foreground")}>
-            {delta >= 0 ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" />}
-            {Math.abs(delta * 100).toFixed(1)}%
-          </span>
-        )}
-      </div>
-      {hint && <p className="relative mt-1.5 text-[11.5px] text-muted-foreground">{hint}</p>}
-    </div>
+    <section
+      className={cn(
+        "relative min-w-0 overflow-hidden rounded-xl border border-[color-mix(in_oklab,var(--primary)_26%,transparent)] bg-[color-mix(in_oklab,var(--card)_72%,transparent)] backdrop-blur-sm",
+        "shadow-[inset_0_1px_0_color-mix(in_oklab,var(--primary)_22%,transparent),inset_0_0_40px_-24px_color-mix(in_oklab,var(--primary)_60%,transparent),0_18px_40px_-28px_rgb(0_0_0/0.9)]",
+        className,
+      )}
+    >
+      <span aria-hidden className="pointer-events-none absolute inset-x-6 top-0 h-px bg-[linear-gradient(90deg,transparent,var(--primary),transparent)] opacity-70" />
+      <span aria-hidden className="pointer-events-none absolute inset-y-6 left-0 w-px bg-[linear-gradient(180deg,transparent,color-mix(in_oklab,var(--primary)_55%,transparent),transparent)]" />
+      <span aria-hidden className="pointer-events-none absolute inset-0 bg-tech-grid opacity-40 [mask-image:radial-gradient(ellipse_80%_70%_at_50%_0%,#000,transparent)]" />
+      {(label || title || meta || actions) && (
+        <header className="relative flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-[color-mix(in_oklab,var(--primary)_14%,var(--border))] px-4 py-2.5">
+          <div className="min-w-0 flex-1">
+            {label && <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary">{label}</p>}
+            {title && <h2 className="truncate text-[13.5px] font-semibold tracking-[-0.01em] text-foreground">{title}</h2>}
+          </div>
+          {meta && <span className="micro-label shrink-0">{meta}</span>}
+          {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+        </header>
+      )}
+      <div className={cn("relative", bodyClassName)}>{children}</div>
+    </section>
   );
 }
 
-const PILL: Record<string, string> = {
-  active: "success", succeeded: "success", connected: "success", resolved: "success", published: "success", ok: "success", paid: "success", completed: "success", delivered: "success",
-  trialing: "info", open: "info", pending: "warning", scheduled: "info", running: "info", queued: "neutral", inline: "neutral",
-  past_due: "warning", grace_period: "warning", pending_authorization: "warning", paused: "warning", no_heartbeat: "warning", unavailable: "warning", high: "warning", draft: "neutral",
-  suspended: "danger", disabled: "danger", failed: "danger", canceled: "danger", expired: "danger", error: "danger", token_expired: "danger", down: "danger", urgent: "danger", critical: "danger",
-  closed: "neutral", archived: "neutral", not_connected: "neutral", not_configured: "neutral", low: "neutral", normal: "neutral", info: "info", warning: "warning",
-};
+/* ================================================================== system status */
 
-export function StatusPill({ status, label }: { status: string | null | undefined; label?: string }) {
-  if (!status) return <span className="text-subtle-foreground">—</span>;
-  const tone = PILL[status] ?? "neutral";
-  const cls = {
-    success: "border-[#10b981]/25 bg-success-soft text-success-foreground",
-    info: "border-[#2f7bff]/25 bg-blue-soft text-[#7eaaff]",
-    warning: "border-[#f59e0b]/25 bg-warning-soft text-warning-foreground",
-    danger: "border-[#f43f5e]/25 bg-danger-soft text-danger-foreground",
-    neutral: "border-border-strong bg-muted text-foreground-soft",
-  }[tone];
+export interface HealthProbe {
+  api: { status: string; environment?: string; demo_mode?: boolean };
+  database: { status: string };
+  redis: { status: string };
+  worker: { status: string };
+  jobs?: { failed_24h: number };
+  queue_backlog?: number;
+}
+/** Derives the console's single status word from GET /admin/system-health — never hard-coded. */
+export function systemStatus(h?: HealthProbe | null) {
+  if (!h) return { label: "Probing", tone: "idle" as const, detail: "Awaiting first probe" };
+  if (h.api.status !== "ok" || h.database.status !== "ok") return { label: "System offline", tone: "error" as const, detail: `api ${h.api.status} · db ${h.database.status}` };
+  const issues: string[] = [];
+  if (h.redis.status !== "ok") issues.push(`redis ${h.redis.status.replace(/_/g, " ")}`);
+  if (h.worker.status !== "ok") issues.push(`worker ${h.worker.status.replace(/_/g, " ")}`);
+  if (h.jobs?.failed_24h) issues.push(`${h.jobs.failed_24h} failed jobs`);
+  if ((h.queue_backlog ?? 0) > 100) issues.push(`backlog ${h.queue_backlog}`);
+  return issues.length ? { label: "Degraded", tone: "warn" as const, detail: issues.join(" · ") } : { label: "System online", tone: "live" as const, detail: "All probes nominal" };
+}
+
+/** Mono status readout chip, e.g. ● SYSTEM ONLINE. */
+export function SystemStatusChip({ h, className }: { h?: HealthProbe | null; className?: string }) {
+  const s = systemStatus(h);
+  const color = { idle: "text-subtle-foreground", error: "text-danger-foreground", warn: "text-amber", live: "text-mint" }[s.tone];
   return (
-    <span className={cn("inline-flex h-[22px] items-center gap-1.5 whitespace-nowrap rounded-full border px-2 text-[11px] font-medium", cls)}>
-      <span className="size-1.5 rounded-full bg-current" aria-hidden />
-      {label ?? titleCase(status)}
+    <span className={cn("inline-flex items-center gap-2 rounded-[5px] border border-border bg-background-subtle/70 px-2 py-1 font-mono text-[10.5px] uppercase tracking-[0.14em]", color, className)} title={s.detail} role="status">
+      <StatusDot tone={s.tone} pulse={s.tone === "live" || s.tone === "error"} />
+      {s.label}
     </span>
   );
 }
 
-export function DemoTag({ show = true }: { show?: boolean }) {
-  if (!show) return null;
-  return <span className="rounded border border-[#f59e0b]/30 bg-warning-soft px-1.5 py-px font-mono text-[9.5px] font-semibold uppercase tracking-wider text-warning-foreground">Demo</span>;
+/* ================================================================== metrics */
+
+const TONE_TEXT = {
+  signal: "text-primary", ice: "text-ice", cyan: "text-cyan", mint: "text-mint", amber: "text-amber", success: "text-success", warning: "text-warning", danger: "text-danger", neutral: "text-subtle-foreground",
+} as const;
+const TONE_BG = {
+  signal: "bg-primary", ice: "bg-ice", cyan: "bg-cyan", mint: "bg-mint", amber: "bg-amber", success: "bg-success", warning: "bg-warning", danger: "bg-danger", neutral: "bg-border-strong",
+} as const;
+export type Tone = keyof typeof TONE_TEXT;
+export const toneText = (t: Tone) => TONE_TEXT[t];
+export const toneBg = (t: Tone) => TONE_BG[t];
+
+/** Hairline grid container — children are cells separated by 1px rules. */
+export function KpiGrid({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <div className={cn("grid gap-px overflow-hidden rounded-xl border border-border bg-border shadow-sm", className)}>{children}</div>;
 }
 
-/* ------------------------------------------------------------------ table */
-
-export function DataTable({ head, children, loading, empty, colSpan, minWidth = 720 }: {
-  head: React.ReactNode; children: React.ReactNode; loading?: boolean; empty?: boolean | React.ReactNode; colSpan: number; minWidth?: number;
+/** A single metric cell. Numeric `value` counts up; pass `display` for pre-formatted nodes. */
+export function Kpi({ label, value, format, display, sub, tone = "neutral", icon: Icon, href, loading, alert, className, children }: {
+  label: string; value?: number | null; format?: (n: number) => string; display?: React.ReactNode; sub?: React.ReactNode; tone?: Tone; icon?: React.ComponentType<{ className?: string }>;
+  href?: string; loading?: boolean; alert?: boolean; className?: string; children?: React.ReactNode;
 }) {
-  return (
-    <div className="relative max-h-[640px] overflow-auto scrollbar-thin">
-      <table className="w-full border-collapse text-[13px]" style={{ minWidth }}>
-        <thead className="sticky top-0 z-10 bg-card-elevated/95 backdrop-blur">
-          <tr className="border-b border-border">{head}</tr>
-        </thead>
-        <tbody className="[&_tr:last-child]:border-0">
-          {loading
-            ? Array.from({ length: 6 }).map((_, i) => (
-                <tr key={i} className="border-b border-border">
-                  <td colSpan={colSpan} className="px-5 py-3">
-                    <Skeleton className="h-5 w-full" />
-                  </td>
-                </tr>
-              ))
-            : empty
-              ? (
-                <tr>
-                  <td colSpan={colSpan}>{typeof empty === "boolean" ? <EmptyState compact icon={Search} title="Nothing matches" description="Try adjusting the filters." /> : empty}</td>
-                </tr>
-              )
-              : children}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-export function Th({ children, className, align }: { children?: React.ReactNode; className?: string; align?: "right" }) {
-  return (
-    <th className={cn("h-10 whitespace-nowrap px-4 text-left align-middle font-mono text-[10.5px] font-medium uppercase tracking-[0.1em] text-subtle-foreground first:pl-5 last:pr-5", align === "right" && "text-right", className)}>
-      {children}
-    </th>
-  );
-}
-
-export function Td({ children, className, align }: { children?: React.ReactNode; className?: string; align?: "right" }) {
-  return <td className={cn("px-4 py-3 align-middle text-foreground-soft first:pl-5 last:pr-5", align === "right" && "text-right tabular", className)}>{children}</td>;
-}
-
-export function Row({ children, onClick, href, className }: { children: React.ReactNode; onClick?: () => void; href?: string; className?: string }) {
-  const interactive = !!(onClick || href);
-  return (
-    <tr
-      className={cn("border-b border-border transition-colors hover:bg-[rgb(47_123_255/0.045)]", interactive && "cursor-pointer", className)}
-      onClick={onClick}
-      onKeyDown={(e) => { if (interactive && e.key === "Enter") onClick?.(); }}
-      tabIndex={interactive ? 0 : undefined}
-    >
-      {href ? React.Children.map(children, (c) => c) : children}
-    </tr>
-  );
-}
-
-export function Pagination({ page, pages, total, onPage, label = "results" }: { page: number; pages: number; total: number; onPage: (p: number) => void; label?: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-3 text-[12px] text-muted-foreground">
-      <span className="tabular">
-        {formatNumber(total)} {label} · page {page} of {Math.max(1, pages)}
-      </span>
-      <div className="flex gap-1.5">
-        <Button variant="outline" size="icon-xs" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label="Previous page">
-          <ChevronLeft />
-        </Button>
-        <Button variant="outline" size="icon-xs" disabled={page >= pages} onClick={() => onPage(page + 1)} aria-label="Next page">
-          <ChevronRight />
-        </Button>
+  const body = (
+    <>
+      <span aria-hidden className={cn("absolute left-0 top-4 h-3.5 w-[2px] rounded-r-full", TONE_BG[tone], tone !== "neutral" && "shadow-[0_0_8px_currentColor]", TONE_TEXT[tone])} />
+      <div className="flex items-center justify-between gap-2">
+        <span className="micro-label truncate">{label}</span>
+        {Icon && <Icon className={cn("size-3.5 shrink-0", alert ? TONE_TEXT[tone] : "text-subtle-foreground")} />}
       </div>
+      {loading ? (
+        <Skeleton className="mt-3 h-7 w-20" />
+      ) : (
+        <div className={cn("mt-2.5 text-[24px] font-semibold leading-none tracking-[-0.035em] tabular", alert ? TONE_TEXT[tone] : "text-foreground")}>
+          {display ?? <AnimatedNumber value={value ?? null} format={format} />}
+        </div>
+      )}
+      {sub != null && <div className="mt-2 truncate font-mono text-[11px] text-muted-foreground">{sub}</div>}
+      {children}
+    </>
+  );
+  const cls = cn("group relative block min-w-0 bg-card px-4 pb-3.5 pt-3.5 transition-colors", href && "hover:bg-surface-hover focus-visible:bg-surface-hover", className);
+  return href ? <Link href={href} className={cls}>{body}</Link> : <div className={cls}>{body}</div>;
+}
+
+/** Horizontal meter (share / utilisation). */
+export function Meter({ value, max, tone = "signal", className, label }: { value: number; max: number; tone?: Tone; className?: string; label?: string }) {
+  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+  return (
+    <div className={cn("h-1.5 w-full overflow-hidden rounded-full bg-muted", className)} role="meter" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
+      <div className={cn("h-full rounded-full transition-[width] duration-700 ease-out", TONE_BG[tone])} style={{ width: `${pct}%` }} />
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ filters */
-
-export function SearchInput({ value, onChange, placeholder = "Search…", className }: { value: string; onChange: (v: string) => void; placeholder?: string; className?: string }) {
-  const [local, setLocal] = React.useState(value);
-  React.useEffect(() => setLocal(value), [value]);
-  React.useEffect(() => {
-    const t = setTimeout(() => { if (local !== value) onChange(local); }, 300);
-    return () => clearTimeout(t);
-  }, [local, value, onChange]);
+/** Stacked distribution bar + legend (e.g. subscription states). */
+export function StackedMeter({ segments, className, showLegend = true }: { segments: { label: string; value: number; tone: Tone; href?: string }[]; className?: string; showLegend?: boolean }) {
+  const total = segments.reduce((a, s) => a + s.value, 0);
   return (
-    <div className={cn("w-full sm:w-64", className)}>
-      <Input
-        value={local}
-        onChange={(e) => setLocal(e.target.value)}
-        placeholder={placeholder}
-        leading={<Search />}
-        className="h-9"
-        aria-label={placeholder}
-        trailing={local ? (
-          <button type="button" onClick={() => { setLocal(""); onChange(""); }} className="rounded p-1 text-subtle-foreground hover:text-foreground" aria-label="Clear search">
-            <X className="size-3.5" />
-          </button>
-        ) : undefined}
-      />
-    </div>
-  );
-}
-
-export function FilterSelect({ value, onChange, options, placeholder, className }: {
-  value: string; onChange: (v: string) => void; options: { value: string; label: string }[]; placeholder: string; className?: string;
-}) {
-  return (
-    <Select value={value || "__all"} onValueChange={(v) => onChange(v === "__all" ? "" : v)}>
-      <SelectTrigger size="sm" className={cn("h-9 w-full sm:w-40", className)} aria-label={placeholder}>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="__all">{placeholder}</SelectItem>
-        {options.map((o) => (
-          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+    <div className={className}>
+      <div className="flex h-2 w-full gap-[2px] overflow-hidden rounded-[3px] bg-muted" role="img" aria-label={segments.map((s) => `${s.label} ${s.value}`).join(", ")}>
+        {total > 0 && segments.filter((s) => s.value > 0).map((s) => (
+          <div key={s.label} className={cn("h-full first:rounded-l-[3px] last:rounded-r-[3px]", TONE_BG[s.tone])} style={{ width: `${(s.value / total) * 100}%` }} />
         ))}
-      </SelectContent>
-    </Select>
+      </div>
+      {showLegend && (
+        <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5">
+          {segments.map((s) => {
+            const inner = (
+              <>
+                <span className="flex min-w-0 items-center gap-2 text-foreground-soft"><span className={cn("size-1.5 shrink-0 rounded-[1px]", TONE_BG[s.tone])} /><span className="truncate">{s.label}</span></span>
+                <span className="font-mono tabular text-foreground">{s.value}<span className="ml-1.5 text-subtle-foreground">{total ? Math.round((s.value / total) * 100) : 0}%</span></span>
+              </>
+            );
+            return (
+              <li key={s.label} className="text-[12px]">
+                {s.href ? <Link href={s.href} className="-mx-1 flex items-center justify-between gap-2 rounded px-1 hover:bg-surface-hover">{inner}</Link> : <div className="flex items-center justify-between gap-2">{inner}</div>}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }
 
-export function FilterBar({ children }: { children: React.ReactNode }) {
-  return <div className="flex flex-col gap-2 border-b border-border px-5 py-3 sm:flex-row sm:flex-wrap sm:items-center">{children}</div>;
+/* ================================================================== status */
+
+const PILL: Record<string, BadgeProps["variant"]> = {
+  active: "success", succeeded: "success", connected: "success", resolved: "success", published: "success", ok: "success", paid: "success", completed: "success", delivered: "success", enabled: "success",
+  trialing: "info", open: "info", scheduled: "info", running: "info", sent: "info", info: "info", inline: "neutral",
+  pending: "warning", past_due: "warning", grace_period: "warning", pending_authorization: "warning", paused: "warning", no_heartbeat: "warning", unavailable: "warning", high: "amber", warning: "warning", degraded: "warning", refunded: "amber",
+  suspended: "danger", disabled: "danger", failed: "danger", canceled: "danger", expired: "danger", error: "danger", token_expired: "danger", down: "danger", urgent: "danger", critical: "danger",
+  closed: "neutral", archived: "neutral", not_connected: "neutral", not_configured: "neutral", low: "neutral", normal: "neutral", queued: "neutral", draft: "neutral", hidden: "neutral", skipped: "neutral",
+};
+const PILL_LABEL: Record<string, string> = { pending_authorization: "Pending auth", not_connected: "Not connected", not_configured: "Not set", grace_period: "Grace", past_due: "Past due", token_expired: "Token expired", no_heartbeat: "No heartbeat", ok: "OK" };
+
+/** Mono status readout with a glowing dot. */
+export function StatusPill({ status, label, dot = true, className }: { status: string | null | undefined; label?: string; dot?: boolean; className?: string }) {
+  if (!status) return <span className="font-mono text-[11px] text-subtle-foreground">—</span>;
+  return (
+    <Badge variant={PILL[status] ?? "neutral"} size="sm" mono dot={dot} className={className}>
+      {label ?? PILL_LABEL[status] ?? titleCase(status)}
+    </Badge>
+  );
 }
 
-export const opts = (values: string[]) => values.map((v) => ({ value: v, label: titleCase(v) }));
+export function DemoTag({ show = true, label = "Demo" }: { show?: boolean; label?: string }) {
+  if (!show) return null;
+  return <Badge variant="amber" size="sm" mono className="h-[18px] px-1 text-[9.5px]">{label}</Badge>;
+}
 
-/* ------------------------------------------------------------------ misc */
+const MONO_TONES = [
+  "bg-ice-soft text-ice border-[color-mix(in_oklab,var(--ice)_24%,transparent)]",
+  "bg-cyan-soft text-cyan border-[color-mix(in_oklab,var(--cyan)_24%,transparent)]",
+  "bg-mint-soft text-mint border-[color-mix(in_oklab,var(--mint)_24%,transparent)]",
+  "bg-amber-soft text-amber border-[color-mix(in_oklab,var(--amber)_26%,transparent)]",
+  "bg-muted text-foreground-soft border-border-strong",
+];
 
-export function KeyValue({ items, className }: { items: [string, React.ReactNode][]; className?: string }) {
+/** Token-coloured monogram (orgs: square, people: round). */
+export function Monogram({ name, size = 28, round, className }: { name?: string | null; size?: number; round?: boolean; className?: string }) {
+  const hash = (name ?? "").split("").reduce((a, c) => a + c.charCodeAt(0), 0);
   return (
-    <dl className={cn("grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2", className)}>
+    <span
+      aria-hidden
+      className={cn("inline-flex shrink-0 select-none items-center justify-center border font-mono font-semibold tracking-[0.02em]", round ? "rounded-full" : "rounded-md", MONO_TONES[hash % MONO_TONES.length], className)}
+      style={{ width: size, height: size, fontSize: Math.max(9.5, size * 0.36) }}
+    >
+      {initials(name)}
+    </span>
+  );
+}
+
+/* ================================================================== misc */
+
+export function KeyValue({ items, className, cols = 2 }: { items: [string, React.ReactNode][]; className?: string; cols?: 1 | 2 | 3 }) {
+  return (
+    <dl className={cn("grid grid-cols-1 gap-x-6 gap-y-3.5", cols === 2 && "sm:grid-cols-2", cols === 3 && "sm:grid-cols-3", className)}>
       {items.map(([k, v]) => (
         <div key={k} className="min-w-0">
-          <dt className="font-mono text-[10.5px] uppercase tracking-[0.1em] text-subtle-foreground">{k}</dt>
+          <dt className="micro-label">{k}</dt>
           <dd className="mt-1 truncate text-[13px] text-foreground">{v ?? "—"}</dd>
         </div>
       ))}
@@ -309,7 +347,7 @@ export function QueryState({ query, children, skeleton }: { query: { isLoading: 
   if (query.isLoading) return <>{skeleton ?? <PageSkeleton />}</>;
   if (query.isError)
     return (
-      <div className="rounded-2xl border border-border bg-card">
+      <div className="rounded-xl border border-border bg-card">
         <ErrorState message={query.error instanceof Error ? query.error.message : undefined} onRetry={() => query.refetch()} />
       </div>
     );
@@ -319,27 +357,62 @@ export function QueryState({ query, children, skeleton }: { query: { isLoading: 
 export function PageSkeleton() {
   return (
     <div className="space-y-4" aria-busy>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[118px] rounded-2xl" />)}
+      <Skeleton className="h-[104px] rounded-xl" />
+      <div className="grid gap-4 xl:grid-cols-3">
+        <Skeleton className="h-72 rounded-xl xl:col-span-2" />
+        <Skeleton className="h-72 rounded-xl" />
       </div>
-      <Skeleton className="h-80 rounded-2xl" />
     </div>
   );
 }
 
-export function TextLink({ href, children }: { href: string; children: React.ReactNode }) {
+export function TextLink({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) {
   return (
-    <Link href={href} className="font-medium text-foreground underline-offset-4 hover:text-primary-soft-foreground hover:underline" onClick={(e) => e.stopPropagation()}>
+    <Link href={href} className={cn("font-medium text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline", className)} onClick={(e) => e.stopPropagation()}>
       {children}
     </Link>
   );
 }
 
-export function Bar({ value, max, accent = "#2f7bff" }: { value: number; max: number; accent?: string }) {
-  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+/** Mono identifier with a copy affordance. Never use for secrets. */
+export function CopyId({ value, display, className }: { value: string; display?: string; className?: string }) {
+  const [done, setDone] = React.useState(false);
   return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${accent}99, ${accent})` }} />
+    <Tooltip content={done ? "Copied" : "Copy"}>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          navigator.clipboard?.writeText(value).then(() => { setDone(true); setTimeout(() => setDone(false), 1400); }).catch(() => {});
+        }}
+        className={cn("group/copy inline-flex max-w-full items-center gap-1.5 rounded px-1 -mx-1 font-mono text-[11.5px] text-muted-foreground transition hover:bg-surface-hover hover:text-foreground", className)}
+        aria-label={`Copy ${display ?? value}`}
+      >
+        <span className="truncate">{display ?? value}</span>
+        {done ? <Check className="size-3 shrink-0 text-success" /> : <Copy className="size-3 shrink-0 opacity-0 transition group-hover/copy:opacity-100" />}
+      </button>
+    </Tooltip>
+  );
+}
+
+/** Empty / note line inside a panel list. */
+export function EmptyLine({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <p className={cn("px-4 py-8 text-center font-mono text-[11.5px] uppercase tracking-[0.1em] text-subtle-foreground", className)}>{children}</p>;
+}
+
+/** Inline "signal" note, e.g. demo data disclaimer. */
+export function Notice({ tone = "amber", icon: Icon, children, className }: { tone?: "amber" | "ice" | "danger"; icon?: React.ComponentType<{ className?: string }>; children: React.ReactNode; className?: string }) {
+  const cls = {
+    amber: "border-[color-mix(in_oklab,var(--amber)_26%,transparent)] bg-amber-soft text-amber",
+    ice: "border-[color-mix(in_oklab,var(--ice)_24%,transparent)] bg-ice-soft text-ice",
+    danger: "border-[color-mix(in_oklab,var(--danger)_26%,transparent)] bg-danger-soft text-danger-foreground",
+  }[tone];
+  return (
+    <div className={cn("flex items-start gap-2.5 rounded-lg border px-3.5 py-2.5 text-[12.5px] leading-relaxed", cls, className)}>
+      {Icon && <Icon className="mt-0.5 size-3.5 shrink-0" />}
+      <div className="min-w-0 text-foreground-soft">{children}</div>
     </div>
   );
 }
+
+export const opts = (values: string[]) => values.map((v) => ({ value: v, label: titleCase(v) }));

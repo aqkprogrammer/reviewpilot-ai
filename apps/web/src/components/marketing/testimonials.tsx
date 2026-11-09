@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { Quote, Info } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { Info } from "lucide-react";
 import { Section, SectionHeading } from "./primitives";
 import { cn } from "@/lib/utils";
 
@@ -31,42 +31,73 @@ const SAMPLES = [
 
 export function Testimonials() {
   const [i, setI] = React.useState(0);
+  const reduce = useReducedMotion();
   const t = SAMPLES[i];
+  const onKey = (e: React.KeyboardEvent) => {
+    if (!["ArrowDown", "ArrowUp", "ArrowRight", "ArrowLeft"].includes(e.key)) return;
+    e.preventDefault();
+    const n = (i + (e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : SAMPLES.length - 1)) % SAMPLES.length;
+    setI(n);
+    document.getElementById(`tst-tab-${n}`)?.focus();
+  };
   return (
     <Section id="testimonials">
-      <SectionHeading eyebrow="Testimonials" title="What it's like to run reputation on autopilot" />
-      <p className="mx-auto mt-3 flex w-fit items-center gap-1.5 rounded-full bg-warning-soft px-3 py-1 text-[12px] font-medium text-warning-foreground">
-        <Info className="size-3.5" /> Sample testimonials for illustration — not real customer endorsements
-      </p>
-      <div className="mt-12 grid items-center gap-8 lg:grid-cols-[320px_1fr]">
-        <ul className="space-y-2" role="tablist" aria-label="Sample testimonials">
-          {SAMPLES.map((s, idx) => (
-            <li key={s.name}>
-              <button
-                role="tab"
-                aria-selected={i === idx}
-                onClick={() => setI(idx)}
-                className={cn(
-                  "flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition",
-                  i === idx ? "border-[#e3a6f2] bg-card shadow-sm ring-4 ring-[#d63af0]/5 dark:border-primary/40" : "border-transparent opacity-60 hover:opacity-100",
-                )}
-              >
-                <span className="flex size-10 items-center justify-center rounded-full bg-[#f3e8ff] text-[12px] font-semibold text-[#7e22ce] dark:bg-purple-soft dark:text-purple">{s.initials}</span>
-                <span>
-                  <span className="block text-[14px] font-semibold text-foreground">{s.name}</span>
-                  <span className="block text-[12px] text-muted-foreground">{s.role}</span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        <div className="relative rounded-[24px] border border-border bg-card p-8 shadow-sm sm:p-12">
-          <Quote className="size-8 text-[#d63af0]" strokeWidth={1.5} aria-hidden />
+      <SectionHeading
+        index={[7, 9]}
+        eyebrow="Testimonials"
+        title="What it's like to run reputation on autopilot"
+        aside={
+          <p className="inline-flex items-start gap-2 rounded-md border border-[color-mix(in_oklab,var(--amber)_28%,transparent)] bg-amber-soft px-3 py-2 text-[12.5px] leading-snug text-amber">
+            <Info className="mt-0.5 size-3.5 shrink-0" /> Sample testimonials for illustration — not real customer endorsements
+          </p>
+        }
+      />
+      <div className="mt-14 grid gap-10 lg:grid-cols-12">
+        <div className="lg:col-span-4">
+          <div role="tablist" aria-label="Sample testimonials" aria-orientation="vertical" className="border-t border-border" onKeyDown={onKey}>
+            {SAMPLES.map((s, idx) => {
+              const on = i === idx;
+              return (
+                <button
+                  key={s.name}
+                  id={`tst-tab-${idx}`}
+                  role="tab"
+                  aria-selected={on}
+                  aria-controls="tst-panel"
+                  tabIndex={on ? 0 : -1}
+                  onClick={() => setI(idx)}
+                  className="group relative flex w-full items-center gap-4 border-b border-border py-4 text-left focus-visible:outline-none focus-visible:ring-[1.5px] focus-visible:ring-inset focus-visible:ring-ring"
+                >
+                  {on && <motion.span layoutId="tst-ind" className="absolute -left-px inset-y-[-1px] w-px bg-primary shadow-[0_0_10px_var(--primary)]" transition={{ type: "spring", stiffness: 420, damping: 36 }} />}
+                  <span className={cn("pl-4 font-mono text-[11px] tabular", on ? "text-primary" : "text-subtle-foreground")}>{String(idx + 1).padStart(2, "0")}</span>
+                  <span className={cn("flex size-9 items-center justify-center rounded-md border font-mono text-[11px] transition-colors", on ? "border-[color-mix(in_oklab,var(--primary)_40%,transparent)] bg-primary-soft text-primary" : "border-border text-subtle-foreground")}>{s.initials}</span>
+                  <span>
+                    <span className={cn("block text-[14px] font-semibold transition-colors", on ? "text-foreground" : "text-foreground-soft group-hover:text-foreground")}>{s.name}</span>
+                    <span className="mt-0.5 block font-mono text-[10.5px] tracking-[0.04em] text-subtle-foreground">{s.role}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div id="tst-panel" role="tabpanel" aria-labelledby={`tst-tab-${i}`} className="relative lg:col-span-8 lg:pl-6">
+          <span aria-hidden className="absolute -top-10 left-0 select-none font-serif text-[140px] leading-none text-primary/15 lg:left-6">&ldquo;</span>
           <AnimatePresence mode="wait">
-            <motion.blockquote key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.3 }}>
-              <p className="mt-5 text-pretty text-[20px] font-medium leading-[1.5] tracking-[-0.01em] text-foreground sm:text-[22px]">{t.quote}</p>
-              <footer className="mt-6 text-[13px] text-muted-foreground">
-                — {t.name}, {t.role} <span className="text-subtle-foreground">(sample)</span>
+            <motion.blockquote
+              key={i}
+              initial={reduce ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduce ? undefined : { opacity: 0, y: -6 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              className="relative"
+            >
+              <p className="text-pretty text-[22px] font-medium leading-[1.42] tracking-[-0.02em] text-foreground sm:text-[28px]">{t.quote}</p>
+              <footer className="mt-8 flex items-center gap-3 border-t border-border pt-5">
+                <span className="h-px w-6 bg-primary" aria-hidden />
+                <span className="text-[13.5px] text-foreground-soft">
+                  {t.name}, {t.role}
+                </span>
+                <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.14em] text-amber">Sample</span>
               </footer>
             </motion.blockquote>
           </AnimatePresence>

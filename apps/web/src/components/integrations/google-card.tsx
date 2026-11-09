@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { InlineAlert, Skeleton } from "@/components/ui/states";
 import { api, errorMessage } from "@/lib/api";
 import { useOrg } from "@/lib/session";
-import { IntegrationCard, KV } from "./shell";
+import { IntegrationCard, KV, KVGroup, SetupSteps, StateRail } from "./shell";
 
 interface GLoc { name: string; title: string | null; address: string; place_id?: string | null }
 interface GoogleStatus {
@@ -53,9 +53,9 @@ export function GoogleCard() {
 
   return (
     <IntegrationCard
-      className="lg:col-span-2"
       icon={<GoogleIcon />}
       name="Google Business Profile"
+      code="GBP · OAuth 2.0 · Official API"
       tagline="Official Business Profile APIs — review sync and reply publishing. We never scrape Google."
       status={status}
       footer={
@@ -79,25 +79,37 @@ export function GoogleCard() {
         )
       }
     >
+      <StateRail status={status} />
       {!s.platform_configured ? (
-        <InlineAlert variant="info" icon={BookOpen} title="Google OAuth isn't configured on this server">
-          An administrator needs to add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET, enable the Business Profile APIs and request API access from Google (see docs/GOOGLE_INTEGRATION.md). Until then, paste each location's Google review link on the Locations page — the public feedback page uses it.
-        </InlineAlert>
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <InlineAlert variant="info" icon={BookOpen} title="Google OAuth isn't configured on this server">
+            Until it is, paste each location's Google review link on the Locations page — the public feedback page uses it. Nothing shows as connected unless Google confirms it.
+          </InlineAlert>
+          <SetupSteps
+            title="Server setup · administrator"
+            steps={[
+              <>Add <code className="font-mono text-[11px] text-foreground">GOOGLE_CLIENT_ID</code> and <code className="font-mono text-[11px] text-foreground">GOOGLE_CLIENT_SECRET</code> to the API environment.</>,
+              "Enable the Business Profile APIs in the Google Cloud project.",
+              "Request Business Profile API access from Google (approval can take days).",
+              <>Follow <code className="font-mono text-[11px] text-foreground">docs/GOOGLE_INTEGRATION.md</code>, then connect here.</>,
+            ]}
+          />
+        </div>
       ) : (
         <p className="text-[13px] text-muted-foreground">{STATUS_COPY[s.status] ?? ""}</p>
       )}
-      {s.last_error && s.status !== "connected" && <InlineAlert variant="danger" title="Last error">{s.last_error}</InlineAlert>}
+      {s.last_error && s.status !== "connected" && <InlineAlert variant="danger" title="Last error"><span className="font-mono text-xs">{s.last_error}</span></InlineAlert>}
       {s.status !== "not_connected" && (
-        <div className="grid gap-2 sm:grid-cols-3">
+        <KVGroup className="grid sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           <KV label="Google account" value={s.email} />
-          <KV label="Last sync" value={s.last_synced_at ? formatDistanceToNow(new Date(s.last_synced_at), { addSuffix: true }) : "Never"} />
-          <KV label="API calls today" value={s.quota_used_today} />
-        </div>
+          <KV label="Last sync" value={s.last_synced_at ? formatDistanceToNow(new Date(s.last_synced_at), { addSuffix: true }) : "Never"} mono />
+          <KV label="API calls today" value={s.quota_used_today} mono />
+        </KVGroup>
       )}
       {s.accounts.length > 0 && (
         <div>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-subtle-foreground">Link Google locations</p>
-          <div className="divide-y divide-border rounded-xl border border-border">
+          <p className="micro-label mb-2">Link Google locations</p>
+          <div className="divide-y divide-border rounded-lg border border-border">
             {s.locations.map((l) => {
               const current = l.google_location_name && l.google_account_id ? `${l.google_account_id}|${l.google_location_name}` : "none";
               return (

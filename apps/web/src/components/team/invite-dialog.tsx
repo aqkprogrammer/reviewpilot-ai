@@ -48,7 +48,7 @@ export function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChan
               <Input id="inv-email" type="email" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} placeholder="colleague@business.com" />
             </FormField>
             <fieldset>
-              <legend className="mb-2 text-[13px] font-medium text-foreground-soft">Role</legend>
+              <legend className="mb-2 font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground">Role</legend>
               <div className="grid gap-2 sm:grid-cols-2">
                 {roles.map((r) => (
                   <button
@@ -56,16 +56,16 @@ export function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChan
                     key={r}
                     onClick={() => setRole(r)}
                     aria-pressed={role === r}
-                    className={cn("rounded-xl border p-3 text-left transition", role === r ? "border-primary bg-primary-soft/50 ring-1 ring-primary" : "border-border hover:border-border-strong")}
+                    className={cn("relative rounded-lg border p-3 text-left transition", role === r ? "border-primary bg-primary-soft shadow-[0_0_0_1px_var(--primary),0_0_18px_-8px_var(--primary)]" : "border-border bg-background-subtle/50 hover:border-border-strong hover:bg-surface-hover")}
                   >
-                    <p className="text-[13px] font-semibold">{ROLE_INFO[r].label}</p>
+                    <p className="flex items-center justify-between text-[13px] font-semibold">{ROLE_INFO[r].label}<span className={cn("size-1.5 rounded-full", role === r ? "bg-primary shadow-[0_0_6px_var(--primary)]" : "bg-border-strong")} aria-hidden /></p>
                     <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{ROLE_INFO[r].description}</p>
                   </button>
                 ))}
               </div>
             </fieldset>
             {!["owner", "admin"].includes(role) && (
-              <div className="space-y-3 rounded-xl border border-border bg-background-subtle p-4">
+              <div className="space-y-3 rounded-lg border border-border bg-background-subtle p-4">
                 <label className="flex items-center justify-between gap-3 text-[13px]">
                   <span><span className="font-medium">Limit to specific locations</span><span className="block text-xs text-muted-foreground">Otherwise they can work with every location</span></span>
                   <Switch checked={restrict} onCheckedChange={setRestrict} />

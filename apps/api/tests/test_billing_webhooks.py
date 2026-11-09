@@ -37,9 +37,39 @@ async def test_mock_checkout_success_activates_via_signed_event():
     assert pdf.headers["content-type"] == "application/pdf"
 
 
-async def test_mock_checkout_failure_enters_grace_period():
+async def _activate(owner, plan_code: str = "growth") -> None:
+    co = (await owner.post("/subscriptions/checkout", {"plan_code": plan_code, "interval": "monthly"})).json()
+    res = await owner.post("/subscriptions/mock-checkout/complete", {"session": co["reference"], "outcome": "success"})
+    assert res.json()["result"] == "payment_recorded"
+
+
+async def test_declined_first_checkout_keeps_trial():
     owner = await signup()
     co = (await owner.post("/subscriptions/checkout", {"plan_code": "growth", "interval": "yearly"})).json()
+    res = await owner.post("/subscriptions/mock-checkout/complete", {"session": co["reference"], "outcome": "failure"})
+    assert res.json()["result"] == "plan_change_failed"
+    sub = await get_subscription(owner.org_id)
+    assert sub.status == "trialing" and sub.grace_period_ends_at is None
+    payments = (await owner.get("/subscriptions/payments")).json()
+    assert payments[0]["status"] == "failed"
+
+
+async def test_declined_upgrade_leaves_active_plan_untouched():
+    owner = await signup()
+    await _activate(owner, "growth")
+    co = (await owner.post("/subscriptions/checkout", {"plan_code": "agency", "interval": "monthly"})).json()
+    res = await owner.post("/subscriptions/mock-checkout/complete", {"session": co["reference"], "outcome": "failure"})
+    assert res.json()["result"] == "plan_change_failed"
+    sub = await get_subscription(owner.org_id)
+    assert sub.status == "active" and sub.grace_period_ends_at is None
+    cur = (await owner.get("/subscriptions/current")).json()
+    assert cur["plan"]["code"] == "growth"
+
+
+async def test_failed_renewal_enters_grace_period():
+    owner = await signup()
+    await _activate(owner, "growth")
+    co = (await owner.post("/subscriptions/checkout", {"plan_code": "growth", "interval": "monthly"})).json()
     res = await owner.post("/subscriptions/mock-checkout/complete", {"session": co["reference"], "outcome": "failure"})
     assert res.json()["result"] == "payment_failed"
     sub = await get_subscription(owner.org_id)
@@ -168,6 +198,7 @@ async def test_stripe_rejects_bad_or_stale_signatures(monkeypatch):
 async def test_stripe_payment_failed_moves_to_grace(monkeypatch):
     _stripe(monkeypatch)
     owner = await signup()
+    await _activate(owner, "growth")  # a renewal failure only matters for a paid subscription
     body = json.dumps({"id": f"evt_fail_{owner.org_id}", "type": "invoice.payment_failed", "data": {"object": {"id": "in_1", "subscription": "sub_x", "amount_due": 199900, "currency": "inr", "subscription_details": {"metadata": {"organization_id": owner.org_id, "plan_code": "growth"}}, "lines": {"data": [{}]}}}}).encode()
     res = await new_client().post("/api/v1/webhooks/stripe", content=body, headers={"Stripe-Signature": _stripe_sig(body)})
     assert res.json()["status"] == "payment_failed"

@@ -1,28 +1,31 @@
 "use client";
 import * as React from "react";
 import Link from "next/link";
-import { Lock, Sparkles } from "lucide-react";
+import { ArrowRight, Lock, LockKeyhole } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/states";
 import { ApiError } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 /** Upgrade prompt shown for 402 plan_limit_exceeded responses. */
 export function UpgradePrompt({ message, compact }: { message?: string; compact?: boolean }) {
   return (
-    <Card className={compact ? "relative overflow-hidden p-5" : "relative overflow-hidden p-8 text-center"}>
-      <div className="pointer-events-none absolute -right-10 -top-16 size-48 rounded-full bg-primary/15 blur-3xl" aria-hidden />
-      <div className={compact ? "flex items-start gap-4" : "flex flex-col items-center"}>
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,var(--primary),var(--purple))] text-white shadow-glow">
-          <Sparkles className="size-5" />
+    <Card className={cn("relative overflow-hidden", compact ? "p-5" : "p-8 text-center")}>
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-tech-grid-fade opacity-60 [mask-image:radial-gradient(ellipse_70%_80%_at_50%_0%,#000_20%,transparent_75%)]" />
+      <span aria-hidden className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,var(--amber),transparent)] opacity-70" />
+      <div className={cn("relative", compact ? "flex items-start gap-4" : "flex flex-col items-center")}>
+        <span className="tech-corners flex size-10 shrink-0 items-center justify-center rounded-lg border border-[color-mix(in_oklab,var(--amber)_35%,var(--border-strong))] bg-amber-soft text-amber">
+          <LockKeyhole className="size-[18px]" />
         </span>
         <div className={compact ? "min-w-0 flex-1" : "mt-4"}>
-          <p className="text-[15px] font-semibold tracking-tight">Upgrade to unlock this</p>
-          <p className="mt-1 max-w-md text-[13px] leading-relaxed text-muted-foreground">
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-amber">Plan limit</p>
+          <p className="mt-1 text-[15px] font-semibold tracking-[-0.01em]">Upgrade to unlock this</p>
+          <p className={cn("mt-1 text-[13px] leading-relaxed text-muted-foreground", !compact && "mx-auto max-w-md")}>
             {message ?? "This feature isn't included in your current plan."}
           </p>
           <Button asChild size="sm" className={compact ? "mt-3" : "mt-5"}>
-            <Link href="/app/subscription">See plans</Link>
+            <Link href="/app/subscription">See plans <ArrowRight /></Link>
           </Button>
         </div>
       </div>
@@ -32,10 +35,12 @@ export function UpgradePrompt({ message, compact }: { message?: string; compact?
 
 export function ReadOnlyNotice({ message }: { message?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-      <span className="mb-4 flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground"><Lock className="size-5" /></span>
-      <p className="text-[15px] font-semibold">You don't have access to this</p>
-      <p className="mt-1.5 max-w-sm text-[13px] text-muted-foreground">{message ?? "Your role doesn't include this area. Ask an owner or admin if you need access."}</p>
+    <div className="relative flex flex-col items-center justify-center overflow-hidden px-6 py-16 text-center">
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-tech-grid-fade opacity-60 [mask-image:radial-gradient(ellipse_45%_60%_at_50%_45%,#000_20%,transparent_75%)]" />
+      <span className="tech-corners relative mb-4 flex size-11 items-center justify-center rounded-lg border border-border-strong bg-card-elevated text-muted-foreground"><Lock className="size-5" /></span>
+      <p className="relative font-mono text-[10px] uppercase tracking-[0.14em] text-subtle-foreground">Access restricted</p>
+      <p className="relative mt-1.5 text-[15px] font-semibold">You don&apos;t have access to this</p>
+      <p className="relative mt-1.5 max-w-sm text-[13px] text-muted-foreground">{message ?? "Your role doesn't include this area. Ask an owner or admin if you need access."}</p>
     </div>
   );
 }

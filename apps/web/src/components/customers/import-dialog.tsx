@@ -9,9 +9,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { FormField } from "@/components/ui/form-field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InlineAlert } from "@/components/ui/states";
+import { AnimatedNumber } from "@/components/ui/tech";
 import { api, errorMessage } from "@/lib/api";
 import { useOrg } from "@/lib/session";
-import { cn, formatNumber } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 interface ImportResult { created: number; updated: number; skipped: number; errors: string[] }
 
@@ -52,17 +53,17 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         </DialogHeader>
         {result ? (
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              {([["Created", result.created, "text-success-foreground"], ["Updated", result.updated, "text-blue"], ["Skipped", result.skipped, "text-warning-foreground"]] as const).map(([l, v, c]) => (
-                <div key={l} className="rounded-xl border border-border p-4">
-                  <p className="text-xs text-muted-foreground">{l}</p>
-                  <p className={cn("mt-1 text-2xl font-semibold tabular", c)}>{formatNumber(v)}</p>
+            <div className="grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-border bg-border">
+              {([["Created", result.created, "text-success-foreground"], ["Updated", result.updated, "text-ice"], ["Skipped", result.skipped, "text-warning-foreground"]] as const).map(([l, v, c]) => (
+                <div key={l} className="bg-card p-4">
+                  <p className="micro-label">{l}</p>
+                  <p className={cn("mt-1.5 text-[26px] font-semibold leading-none tracking-[-0.03em] tabular", c)}><AnimatedNumber value={v} /></p>
                 </div>
               ))}
             </div>
             {result.errors.length > 0 && (
-              <div className="max-h-48 overflow-y-auto rounded-xl border border-border bg-background-subtle p-3 scrollbar-thin">
-                <p className="mb-2 text-xs font-semibold text-foreground">Rows needing attention</p>
+              <div className="max-h-48 overflow-y-auto rounded-lg border border-border bg-background-subtle p-3 scrollbar-thin">
+                <p className="micro-label mb-2 !text-warning-foreground">Rows needing attention · {result.errors.length}</p>
                 <ul className="space-y-1 font-mono text-[11.5px] text-muted-foreground">{result.errors.map((e) => <li key={e}>{e}</li>)}</ul>
               </div>
             )}
@@ -77,19 +78,19 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
               onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
               onDragLeave={() => setDrag(false)}
               onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) setFile(f); }}
-              className={cn("flex w-full flex-col items-center justify-center rounded-xl border border-dashed px-6 py-8 text-center transition", drag ? "border-primary bg-primary-soft/40" : "border-border-strong hover:border-primary/50 hover:bg-muted/40")}
+              className={cn("tech-corners relative flex w-full flex-col items-center justify-center overflow-hidden rounded-lg border border-dashed px-6 py-9 text-center transition", drag ? "border-primary bg-primary-soft text-primary" : file ? "border-[color-mix(in_oklab,var(--primary)_40%,var(--border-strong))] bg-primary-soft/40 text-primary/70" : "border-border-strong text-subtle-foreground hover:border-[color-mix(in_oklab,var(--primary)_45%,var(--border-strong))] hover:bg-surface-hover")}
             >
               {file ? (
                 <>
                   <FileSpreadsheet className="size-7 text-primary" />
-                  <p className="mt-2 text-sm font-medium">{file.name}</p>
-                  <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB · click to replace</p>
+                  <p className="mt-2 text-sm font-medium text-foreground">{file.name}</p>
+                  <p className="mt-0.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-muted-foreground">{(file.size / 1024).toFixed(1)} KB · ready · click to replace</p>
                 </>
               ) : (
                 <>
-                  <Upload className="size-6 text-muted-foreground" />
-                  <p className="mt-2 text-sm font-medium">Drop a CSV here or click to browse</p>
-                  <p className="text-xs text-muted-foreground">UTF-8, up to 5 MB / 10,000 rows</p>
+                  <Upload className="size-6" />
+                  <p className="mt-2 text-sm font-medium text-foreground">Drop a CSV here or click to browse</p>
+                  <p className="mt-0.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-muted-foreground">UTF-8 · max 5 MB · 10,000 rows</p>
                 </>
               )}
             </button>
@@ -103,7 +104,7 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
                 </SelectContent>
               </Select>
             </FormField>
-            <label className="flex items-start gap-3 rounded-xl border border-border bg-background-subtle p-4 text-[13px]">
+            <label className={cn("flex cursor-pointer items-start gap-3 rounded-lg border p-4 text-[13px] transition-colors", consent ? "border-[color-mix(in_oklab,var(--mint)_35%,var(--border))] bg-mint-soft/50" : "border-border bg-background-subtle hover:border-border-strong")}>
               <Checkbox checked={consent} onCheckedChange={(c) => setConsent(c === true)} className="mt-0.5" />
               <span>
                 <span className="font-semibold">These customers agreed to receive service messages</span>

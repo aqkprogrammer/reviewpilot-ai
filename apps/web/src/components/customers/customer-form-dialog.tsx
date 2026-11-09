@@ -14,6 +14,7 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api, errorMessage } from "@/lib/api";
 import { useOrg } from "@/lib/session";
+import { cn } from "@/lib/utils";
 import { LANGUAGES, type Customer } from "./types";
 
 const schema = z
@@ -89,7 +90,7 @@ export function CustomerFormDialog({ open, onOpenChange }: { open: boolean; onOp
               <Input id="c-email" type="email" placeholder="priya@example.com" invalid={!!formState.errors.email} {...register("email")} />
             </FormField>
             <FormField label="Phone" htmlFor="c-phone" error={formState.errors.phone?.message} hint="Include country code, e.g. +91 98765 43210">
-              <Input id="c-phone" inputMode="tel" placeholder="+91 98765 43210" invalid={!!formState.errors.phone} {...register("phone")} />
+              <Input id="c-phone" className="font-mono" inputMode="tel" placeholder="+91 98765 43210" invalid={!!formState.errors.phone} {...register("phone")} />
             </FormField>
             <FormField label="Location">
               <Select value={watch("location_id") || "none"} onValueChange={(v) => setValue("location_id", v === "none" ? "" : v)}>
@@ -107,24 +108,30 @@ export function CustomerFormDialog({ open, onOpenChange }: { open: boolean; onOp
           <FormField label="Notes" htmlFor="c-notes">
             <Textarea id="c-notes" rows={2} placeholder="Anything the team should know" {...register("notes")} />
           </FormField>
-          <fieldset className="rounded-xl border border-border bg-background-subtle p-4">
-            <legend className="sr-only">Consent</legend>
-            <div className="flex items-start gap-3">
+          <fieldset className="overflow-hidden rounded-lg border border-border">
+            <legend className="sr-only">Messaging consent</legend>
+            <div className="flex items-start gap-3 border-b border-border bg-background-subtle/70 px-4 py-3">
               <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
               <div className="min-w-0 flex-1">
                 <p className="text-[13px] font-semibold">Messaging consent</p>
                 <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                   Tick a channel only if this customer agreed to receive service messages on it. Collecting a phone number for a booking is not consent.
                 </p>
-                <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
-                  {([["whatsapp", "WhatsApp"], ["email_consent", "Email"], ["sms", "SMS"]] as const).map(([k, label]) => (
-                    <label key={k} className="flex items-center gap-2 text-[13px]">
-                      <Checkbox checked={watch(k)} onCheckedChange={(c) => setValue(k, c === true)} />
-                      {label}
-                    </label>
-                  ))}
-                </div>
               </div>
+            </div>
+            <div className="grid grid-cols-3 divide-x divide-border">
+              {([["whatsapp", "WhatsApp", "WA"], ["email_consent", "Email", "EM"], ["sms", "SMS", "SMS"]] as const).map(([k, label, short]) => {
+                const on = watch(k);
+                return (
+                  <label key={k} className={cn("flex cursor-pointer items-center gap-2.5 px-4 py-3 text-[13px] transition-colors", on ? "bg-mint-soft/60" : "hover:bg-surface-hover")}>
+                    <Checkbox checked={on} onCheckedChange={(c) => setValue(k, c === true)} />
+                    <span className="min-w-0">
+                      <span className="block font-medium">{label}</span>
+                      <span className={cn("font-mono text-[9.5px] uppercase tracking-[0.1em]", on ? "text-mint" : "text-subtle-foreground")}>{short} · {on ? "granted" : "off"}</span>
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </fieldset>
           <DialogFooter>

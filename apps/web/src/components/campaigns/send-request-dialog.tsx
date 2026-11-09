@@ -14,6 +14,7 @@ import { Avatar } from "@/components/ui/controls";
 import { ApiError, api, errorMessage } from "@/lib/api";
 import { useOrg } from "@/lib/session";
 import { cn } from "@/lib/utils";
+import { choiceClass } from "@/components/dashboard/kit";
 
 interface CustomerLite { id: string; name: string | null; email: string | null; phone: string | null; consents: Record<string, boolean>; opted_out_at: string | null }
 
@@ -62,6 +63,7 @@ export function SendRequestDialog({ trigger }: { trigger: React.ReactNode }) {
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent size="md">
         <DialogHeader>
+          <p className="micro-label">Outreach · One-off</p>
           <DialogTitle>Send a review request</DialogTitle>
           <DialogDescription>Ask one customer for honest feedback. Only customers who agreed to be contacted on a channel can be messaged there.</DialogDescription>
         </DialogHeader>
@@ -76,14 +78,14 @@ export function SendRequestDialog({ trigger }: { trigger: React.ReactNode }) {
                     role="option"
                     aria-selected={customer?.id === c.id}
                     onClick={() => { setCustomer(c); setError(null); }}
-                    className={cn("flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition", customer?.id === c.id ? "border-primary bg-primary-soft/50" : "border-transparent hover:bg-muted")}
+                    className={cn("flex w-full items-center gap-3 px-3 py-2", choiceClass(customer?.id === c.id), customer?.id !== c.id && "border-transparent bg-transparent")}
                   >
                     <Avatar name={c.name} size={28} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[13px] font-medium">{c.name ?? "Unnamed"}</span>
-                      <span className="block truncate text-[11.5px] text-muted-foreground">{c.phone ?? c.email}</span>
+                      <span className="block truncate font-mono text-[10.5px] text-subtle-foreground">{c.phone ?? c.email}</span>
                     </span>
-                    {c.opted_out_at ? <span className="text-[11px] text-danger-foreground">Opted out</span> : customer?.id === c.id && <Check className="size-4 text-primary" />}
+                    {c.opted_out_at ? <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-danger-foreground">Opted out</span> : customer?.id === c.id && <Check className="size-4 text-primary" />}
                   </button>
                 </li>
               ))}
@@ -107,7 +109,7 @@ export function SendRequestDialog({ trigger }: { trigger: React.ReactNode }) {
                       type="button"
                       onClick={() => { setChannel(c.value); setError(null); }}
                       aria-pressed={channel === c.value}
-                      className={cn("relative flex h-10 flex-col items-center justify-center rounded-lg border text-[11px] font-medium transition", channel === c.value ? "border-primary bg-primary-soft/50 text-foreground" : "border-border text-muted-foreground hover:bg-muted", !ok && "opacity-50")}
+                      className={cn("flex h-12 flex-col items-center justify-center gap-0.5 font-mono text-[10px] uppercase tracking-[0.08em]", choiceClass(channel === c.value), channel === c.value ? "text-foreground" : "text-muted-foreground", !ok && "opacity-50")}
                     >
                       <c.icon className="size-4" />
                       {c.label}

@@ -32,7 +32,7 @@ const CHANNEL_META: Record<string, { title: string; description: string; icon: R
 function ModeBadge({ s }: { s?: ChannelStatus }) {
   if (!s) return null;
   if (s.mode === "live") return <Badge variant="success" size="sm" dot>Ready</Badge>;
-  if (s.mode === "simulated") return <Badge variant="purple" size="sm" dot>Simulated (demo)</Badge>;
+  if (s.mode === "simulated") return <Badge variant="mint" size="sm" dot>Simulated (demo)</Badge>;
   return <Badge variant="neutral" size="sm">Needs setup</Badge>;
 }
 
@@ -92,7 +92,7 @@ export function CollectionStep({ ctx }: { ctx: WizardCtx }) {
       </div>
 
       {channels.includes("qr") && (
-        <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+        <div className="mt-6 overflow-hidden rounded-lg border border-border bg-card hairline-top">
           <div className="grid gap-0 sm:grid-cols-[minmax(0,1fr)_220px]">
             <div className="p-5">
               <p className="text-[14px] font-semibold">Your first QR code</p>
@@ -116,11 +116,11 @@ export function CollectionStep({ ctx }: { ctx: WizardCtx }) {
             </div>
             <div className="flex items-center justify-center border-t border-border bg-background-subtle p-5 sm:border-l sm:border-t-0">
               {qr && svg ? (
-                <div className="rounded-2xl border border-border bg-white p-3 shadow-sm">
+                <div className="tech-corners rounded-md border border-border bg-white p-3 shadow-sm">
                   <img src={svg} alt={`QR code for ${location?.name}`} className="size-36" />
                 </div>
               ) : (
-                <div className="flex size-36 items-center justify-center rounded-2xl border border-dashed border-border-strong text-subtle-foreground"><QrCode className="size-8" /></div>
+                <div className="flex size-36 items-center justify-center rounded-md border border-dashed border-border-strong text-subtle-foreground"><QrCode className="size-8" /></div>
               )}
             </div>
           </div>
@@ -193,9 +193,9 @@ export function TeamStep({ ctx }: { ctx: WizardCtx }) {
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input aria-label={`Email ${i + 1}`} type="email" placeholder="colleague@business.com" value={r.email} invalid={!!rowErrors[i]}
                 onChange={(e) => setRows((rs) => rs.map((x, j) => (j === i ? { ...x, email: e.target.value } : x)))} className="sm:flex-1" />
-              <div className="flex gap-2">
+              <div className="flex min-w-0 gap-2">
                 <Select value={r.role} onValueChange={(v) => setRows((rs) => rs.map((x, j) => (j === i ? { ...x, role: v } : x)))}>
-                  <SelectTrigger className="sm:w-44" aria-label={`Role ${i + 1}`}><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="min-w-0 flex-1 sm:w-44 sm:flex-none" aria-label={`Role ${i + 1}`}><SelectValue /></SelectTrigger>
                   <SelectContent>{ROLES.map((ro) => <SelectItem key={ro.value} value={ro.value}>{ro.label} — {ro.hint}</SelectItem>)}</SelectContent>
                 </Select>
                 <Button variant="ghost" size="icon" aria-label="Remove row" disabled={rows.length === 1} onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}><Trash2 /></Button>
@@ -253,30 +253,30 @@ export function PlanStep({ ctx }: { ctx: WizardCtx }) {
   return (
     <div>
       <StepHeader step={7} icon={Rocket} title="Choose how to continue" description="Your 14-day free trial includes Growth features. Subscribe now or decide later — payments are confirmed only by the payment provider." />
-      <div className="mb-5 inline-flex h-9 items-center rounded-lg border border-border bg-muted/70 p-0.5" role="group" aria-label="Billing interval">
+      <div className="mb-5 inline-flex h-9 items-center rounded-lg border border-border bg-card/70 p-0.5" role="group" aria-label="Billing interval">
         {(["monthly", "yearly"] as const).map((v) => (
-          <button key={v} onClick={() => setBilling(v)} aria-pressed={interval === v} className={cn("h-full rounded-md px-3.5 text-[13px] font-medium transition", interval === v ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>
-            {v === "monthly" ? "Monthly" : <>Annual <span className="ml-1 text-success-foreground">2 months free</span></>}
+          <button key={v} onClick={() => setBilling(v)} aria-pressed={interval === v} className={cn("h-full rounded-md border px-3.5 text-[13px] font-medium transition", interval === v ? "border-[color-mix(in_oklab,var(--primary)_35%,transparent)] bg-primary-soft text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
+            {v === "monthly" ? "Monthly" : <>Annual <span className="ml-1 font-mono text-[10px] uppercase tracking-[0.08em] text-mint">2 months free</span></>}
           </button>
         ))}
       </div>
       {!plans ? (
-        <div className="grid gap-3 sm:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-64 rounded-2xl" />)}</div>
+        <div className="grid gap-3 sm:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-64 rounded-lg" />)}</div>
       ) : (
         <div className="grid gap-3 md:grid-cols-3">
           {plans.filter((p) => !p.is_custom_pricing).map((p) => {
             const highlight = preferred ? preferred === p.code : p.is_popular;
             const price = interval === "yearly" ? p.price_yearly_minor / 12 : p.price_monthly_minor;
             return (
-              <div key={p.code} className={cn("relative flex flex-col rounded-2xl border bg-card p-5 transition", highlight ? "border-primary shadow-[0_0_0_4px_color-mix(in_oklab,var(--primary)_12%,transparent)]" : "border-border")}>
-                {p.is_popular && <Badge variant="primary" size="sm" className="absolute right-4 top-4">Most popular</Badge>}
+              <div key={p.code} className={cn("relative flex flex-col rounded-lg border bg-card p-5 transition hairline-top", highlight ? "tech-corners border-[color-mix(in_oklab,var(--primary)_55%,transparent)] shadow-[0_0_0_3px_color-mix(in_oklab,var(--primary)_10%,transparent)]" : "border-border")}>
+                {p.is_popular && <Badge variant="primary" size="sm" mono className="absolute right-4 top-4">Most popular</Badge>}
                 <p className="text-[15px] font-semibold">{p.name}</p>
                 <p className="mt-1 min-h-10 text-[12.5px] leading-snug text-muted-foreground">{p.description}</p>
                 <p className="mt-4 flex items-baseline gap-1">
                   <span className="text-[28px] font-semibold tracking-[-0.03em] tabular">{formatCurrency(price, p.currency)}</span>
                   <span className="text-xs text-muted-foreground">/mo</span>
                 </p>
-                <p className="text-[11.5px] text-subtle-foreground">{interval === "yearly" ? `${formatCurrency(p.price_yearly_minor, p.currency)} billed yearly` : "billed monthly"} · GST incl.</p>
+                <p className="font-mono text-[10.5px] text-subtle-foreground">{interval === "yearly" ? `${formatCurrency(p.price_yearly_minor, p.currency)} billed yearly` : "billed monthly"} · GST incl.</p>
                 <ul className="mt-4 flex-1 space-y-2">
                   {p.features.slice(0, 5).map((f) => (
                     <li key={f} className="flex gap-2 text-[12.5px] leading-snug text-foreground-soft"><Check className="mt-0.5 size-3.5 shrink-0 text-primary" />{f}</li>
@@ -334,29 +334,39 @@ export function FinishStep({ ctx }: { ctx: WizardCtx }) {
 
   return (
     <div>
-      <div className="relative mb-8 overflow-hidden rounded-3xl border border-primary/15 bg-[linear-gradient(135deg,#f3edff,#efe7ff_45%,#fbeefa)] p-7 dark:bg-[linear-gradient(135deg,#1b1433,#171030_45%,#22122b)]">
-        <div className="bg-crosshair absolute inset-0 opacity-60" aria-hidden />
+      <div className="tech-corners relative mb-8 overflow-hidden rounded-xl border border-[color-mix(in_oklab,var(--primary)_28%,var(--border))] bg-card p-7 hairline-top">
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-tech-grid opacity-70 [mask-image:linear-gradient(to_left,#000,transparent_70%)]" />
+        <svg aria-hidden viewBox="0 0 200 200" className="pointer-events-none absolute -right-10 top-1/2 size-[260px] -translate-y-1/2">
+          {[30, 52, 74, 96].map((r, i) => (
+            <circle key={r} cx="100" cy="100" r={r} fill="none" stroke={i === 0 ? "var(--primary)" : "var(--border-strong)"} strokeOpacity={i === 0 ? 0.7 : 1} strokeDasharray={i === 2 ? "2 5" : undefined} />
+          ))}
+          <circle cx="100" cy="100" r="14" fill="var(--primary)" fillOpacity="0.85" />
+        </svg>
         <div className="relative">
-          <span className="flex size-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,var(--primary),var(--purple))] text-white shadow-glow"><Check className="size-6" strokeWidth={2.5} /></span>
-          <p className="mt-5 text-[12px] font-semibold uppercase tracking-[0.14em] text-primary">Step 8 of 8</p>
-          <h1 className="mt-2 text-[28px] font-semibold leading-tight tracking-[-0.03em] text-[#1d0b3a] dark:text-foreground">{ctx.org?.name ?? "Your workspace"} is ready.</h1>
+          <span className="flex size-12 items-center justify-center rounded-md border border-[color-mix(in_oklab,var(--mint)_35%,transparent)] bg-mint-soft text-mint shadow-[0_0_24px_-6px_var(--mint)]"><Check className="size-6" strokeWidth={2.5} /></span>
+          <p className="mt-6 flex items-center gap-3 font-mono text-[10.5px] uppercase tracking-[0.16em]">
+            <span className="text-primary">Step 08</span>
+            <span className="h-px w-5 bg-border-strong" aria-hidden />
+            <span className="text-subtle-foreground">Ready for launch</span>
+          </p>
+          <h1 className="mt-3 text-[28px] font-semibold leading-tight tracking-[-0.035em] text-foreground sm:text-[32px]">{ctx.org?.name ?? "Your workspace"} is ready.</h1>
           <p className="mt-2 max-w-lg text-[14.5px] leading-relaxed text-muted-foreground">Here&apos;s what you set up. Anything unchecked can be finished from the dashboard&apos;s setup checklist.</p>
         </div>
       </div>
       <ul className="grid gap-2 sm:grid-cols-2">
         {checklist.map((c) => (
-          <li key={c.label} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-[13.5px]">
-            <span className={cn("flex size-6 items-center justify-center rounded-full", c.done ? "bg-success-soft text-success-foreground" : "bg-muted text-subtle-foreground")}>
+          <li key={c.label} className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 text-[13.5px]">
+            <span className={cn("flex size-6 items-center justify-center rounded-[4px] border", c.done ? "border-[color-mix(in_oklab,var(--mint)_30%,transparent)] bg-mint-soft text-mint" : "border-border bg-muted text-subtle-foreground")}>
               {c.done ? <Check className="size-3.5" strokeWidth={3} /> : <span className="size-1.5 rounded-full bg-current" />}
             </span>
             <span className={c.done ? "text-foreground" : "text-muted-foreground"}>{c.label}</span>
           </li>
         ))}
       </ul>
-      <p className="mb-3 mt-8 text-[11px] font-semibold uppercase tracking-[0.12em] text-subtle-foreground">Good next steps</p>
+      <p className="micro-label mb-3 mt-9">Good next steps</p>
       <div className="grid gap-3 sm:grid-cols-3">
         {next.map((n) => (
-          <button key={n.href} disabled={busy} onClick={() => finish(n.href)} className="group rounded-2xl border border-border bg-card p-4 text-left transition hover:border-primary/40 hover:shadow-sm disabled:opacity-60">
+          <button key={n.href} disabled={busy} onClick={() => finish(n.href)} className="group flex flex-col items-start justify-start rounded-lg border border-border bg-card p-4 text-left transition hairline-top hover:border-[color-mix(in_oklab,var(--primary)_40%,var(--border))] hover:bg-surface-hover/40 focus-visible:outline-none focus-visible:ring-[1.5px] focus-visible:ring-ring disabled:opacity-60">
             <n.icon className="size-5 text-primary" />
             <p className="mt-3 text-[13.5px] font-semibold">{n.title}</p>
             <p className="mt-1 text-[12.5px] text-muted-foreground">{n.body}</p>

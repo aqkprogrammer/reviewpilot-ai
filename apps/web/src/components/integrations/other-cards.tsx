@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { InlineAlert, Skeleton } from "@/components/ui/states";
 import { api, errorMessage } from "@/lib/api";
 import { useOrg } from "@/lib/session";
-import { IntegrationCard, KV } from "./shell";
+import { IntegrationCard, KV, KVGroup, SetupSteps } from "./shell";
 
 interface EmailStatus { provider: string; configured: boolean; from_address: string; sender: { from_name?: string; reply_to?: string | null }; delivery: { mode: string; note?: string } }
 
@@ -32,9 +32,9 @@ export function EmailCard() {
   if (q.isLoading) return <Skeleton className="h-64 rounded-xl" />;
   const s = q.data!;
   return (
-    <IntegrationCard icon={<Mail className="text-primary" />} name="Email (Resend)" tagline="Branded review-request emails with unsubscribe links and delivery tracking." status={s.configured ? "connected" : s.delivery.mode === "simulated" ? "simulated" : "not_configured"}>
+    <IntegrationCard icon={<Mail className="text-primary" />} name="Email (Resend)" code="Resend · Transactional" tagline="Branded review-request emails with unsubscribe links and delivery tracking." status={s.configured ? "connected" : s.delivery.mode === "simulated" ? "simulated" : "not_configured"}>
       {!s.configured && <InlineAlert variant="info">RESEND_API_KEY isn't set on this server{s.delivery.mode === "simulated" ? " — emails are logged to the development outbox instead of being delivered." : "."}</InlineAlert>}
-      <KV label="Sending address" value={s.from_address} mono />
+      <KVGroup><KV label="Sending address" value={s.from_address} mono /><KV label="Delivery mode" value={s.delivery.mode} mono /></KVGroup>
       <div className="grid gap-3 sm:grid-cols-2">
         <FormField label="Sender name" htmlFor="em-name"><Input id="em-name" value={fromName} disabled={!manage} onChange={(e) => setFromName(e.target.value)} /></FormField>
         <FormField label="Reply-to" htmlFor="em-reply"><Input id="em-reply" type="email" value={replyTo} disabled={!manage} onChange={(e) => setReplyTo(e.target.value)} placeholder="hello@yourbusiness.com" /></FormField>
@@ -56,10 +56,19 @@ interface Overview { sms: { status: string; delivery: { mode: string } }; openai
 
 export function SmsCard({ data }: { data?: Overview["sms"] }) {
   return (
-    <IntegrationCard icon={<MessageCircle className="text-cyan" />} name="SMS" tagline="Provider-agnostic SMS adapter (Twilio built in). Each market needs a compliant, registered sender." status={data?.status === "connected" ? "connected" : data?.delivery.mode === "simulated" ? "simulated" : "not_configured"}>
-      <p className="text-[13px] leading-relaxed text-muted-foreground">
-        {data?.status === "connected" ? "SMS review requests are available in campaigns." : "Not configured. In India, SMS requires DLT registration of your sender ID and templates; add a provider's credentials on the server (TWILIO_*) once registered."}
-      </p>
+    <IntegrationCard icon={<MessageCircle className="text-cyan" />} name="SMS" code="Twilio · Provider adapter" tagline="Provider-agnostic SMS adapter (Twilio built in). Each market needs a compliant, registered sender." status={data?.status === "connected" ? "connected" : data?.delivery.mode === "simulated" ? "simulated" : "not_configured"}>
+      {data?.status === "connected" ? (
+        <p className="text-[13px] leading-relaxed text-muted-foreground">SMS review requests are available in campaigns.</p>
+      ) : (
+        <SetupSteps
+          title="Not configured · setup guide"
+          steps={[
+            "In India, register your sender ID and message templates on a DLT portal.",
+            <>Add the provider credentials on the server (<code className="font-mono text-[11px] text-foreground">TWILIO_*</code>) once registered.</>,
+            "SMS appears as a campaign channel as soon as the provider is reachable.",
+          ]}
+        />
+      )}
     </IntegrationCard>
   );
 }
@@ -67,7 +76,11 @@ export function SmsCard({ data }: { data?: Overview["sms"] }) {
 export function OpenAICard({ data }: { data?: Overview["openai"] }) {
   const on = data?.status === "connected";
   return (
-    <IntegrationCard icon={on ? <OpenAIIcon /> : <Cpu className="text-primary" />} name="OpenAI" tagline="Powers AI replies, sentiment and insights. Keys stay on the server." status={on ? "connected" : "not_configured"}>
+    <IntegrationCard icon={on ? <OpenAIIcon /> : <Cpu className="text-primary" />} name="OpenAI" code="LLM · Server-side key" tagline="Powers AI replies, sentiment and insights. Keys stay on the server." status={on ? "connected" : "not_configured"}>
+      <KVGroup>
+        <KV label="Engine" value={on ? "OpenAI" : "Offline heuristic"} mono />
+        <KV label="Model" value={on ? data?.model : "—"} mono />
+      </KVGroup>
       <p className="text-[13px] leading-relaxed text-muted-foreground">{on ? `Using ${data?.model}.` : "No OPENAI_API_KEY — the AI Assistant uses the offline heuristic engine and labels its output accordingly."}</p>
     </IntegrationCard>
   );

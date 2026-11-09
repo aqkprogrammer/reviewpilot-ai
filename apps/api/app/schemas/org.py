@@ -55,7 +55,7 @@ class OrganizationUpdate(BaseModel):
     @classmethod
     def _hex(cls, v):
         if v and not HEX.match(v):
-            raise ValueError("Use a hex colour like #6a4cff")
+            raise ValueError("Use a hex colour like #0e9aa7")
         return v
 
 

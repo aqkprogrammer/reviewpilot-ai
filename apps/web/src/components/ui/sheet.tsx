@@ -16,10 +16,10 @@ export function SheetContent({
 }: React.ComponentPropsWithoutRef<typeof D.Content> & { side?: "right" | "left" }) {
   return (
     <D.Portal>
-      <D.Overlay className="fixed inset-0 z-50 bg-[rgb(10_8_25/0.35)] backdrop-blur-[1px]" />
+      <D.Overlay className="fixed inset-0 z-50 bg-[rgb(2_5_8/0.72)] backdrop-blur-[3px]" />
       <D.Content
         className={cn(
-          "fixed inset-y-0 z-50 flex w-full flex-col border-border bg-popover text-foreground shadow-lg outline-none sm:max-w-xl",
+          "fixed inset-y-0 z-50 flex w-full flex-col border-border-strong bg-popover text-foreground shadow-lg outline-none sm:max-w-xl",
           side === "right" ? "right-0 border-l data-[state=open]:animate-[sheet-in-right_0.3s_var(--ease-out)]" : "left-0 border-r data-[state=open]:animate-[sheet-in-left_0.3s_var(--ease-out)]",
           className,
         )}

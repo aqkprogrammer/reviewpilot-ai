@@ -124,7 +124,15 @@ async def apply_event(db: AsyncSession, evt: NormalizedEvent) -> str:
         pid = evt.provider_payment_id or evt.event_id
         if not await db.scalar(select(Payment).where(Payment.provider == evt.provider, Payment.provider_payment_id == pid)):
             db.add(Payment(organization_id=sub.organization_id, subscription_id=sub.id, provider=evt.provider, provider_payment_id=pid, amount_minor=evt.amount_minor or 0, currency=evt.currency or "INR", status=PaymentStatus.FAILED, failure_reason=evt.failure_reason, plan_code=evt.plan_code, raw=_safe(evt.raw)))
-        if sub.status in (SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.TRIALING):
+        current_plan = await db.get(SubscriptionPlan, sub.plan_id)
+        is_plan_change = bool(evt.plan_code and current_plan and evt.plan_code != current_plan.code)
+        # Only a failed charge for the plan the customer is already on (a renewal) puts the
+        # subscription at risk. A declined upgrade/downgrade checkout, or a declined first
+        # checkout during a trial, leaves the current subscription untouched.
+        if sub.status == SubscriptionStatus.TRIALING or (is_plan_change and sub.status == SubscriptionStatus.ACTIVE):
+            await notify_org(db, sub.organization_id, "billing.payment_failed", "Plan change payment failed", "We couldn't process the payment for your plan change. Your current plan is unaffected — you can try again from Subscription.", link="/app/subscription", send_email=True)
+            return "plan_change_failed"
+        if sub.status in (SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE):
             sub.status = SubscriptionStatus.GRACE_PERIOD
             sub.grace_period_ends_at = sub.grace_period_ends_at or (now() + timedelta(days=settings.grace_period_days))
         await notify_org(db, sub.organization_id, "billing.payment_failed", "Payment failed", f"We couldn't process your payment. Update your payment method within {settings.grace_period_days} days to avoid interruption.", link="/app/subscription", send_email=True)

@@ -94,7 +94,7 @@ async def report_pdf(db: DB, ctx: OrgContext = Depends(require_perm(Perm.ANALYTI
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
     w, h = A4
-    ink, muted, accent = HexColor("#16112b"), HexColor("#6e6a86"), HexColor(ctx.organization.brand_color or "#6a4cff")
+    ink, muted, accent = HexColor("#0b1218"), HexColor("#52616c"), HexColor(ctx.organization.brand_color or "#0e9aa7")
     c.setFillColor(accent)
     c.rect(0, h - 8, w, 8, stroke=0, fill=1)
     c.setFillColor(ink)
@@ -112,7 +112,7 @@ async def report_pdf(db: DB, ctx: OrgContext = Depends(require_perm(Perm.ANALYTI
     for i, (label, value) in enumerate(tiles):
         x = 40 + (i % 3) * 175
         yy = y - (i // 3) * 70
-        c.setStrokeColor(HexColor("#e9e7f3"))
+        c.setStrokeColor(HexColor("#dde5e9"))
         c.roundRect(x, yy - 40, 160, 56, 8, stroke=1, fill=0)
         c.setFillColor(muted)
         c.setFont("Helvetica", 8.5)
@@ -129,7 +129,7 @@ async def report_pdf(db: DB, ctx: OrgContext = Depends(require_perm(Perm.ANALYTI
         c.setFont("Helvetica", 9)
         c.setFillColor(ink)
         c.drawString(40, y, f"{row['rating']}★")
-        c.setFillColor(HexColor("#f0eef7"))
+        c.setFillColor(HexColor("#edf2f4"))
         c.rect(70, y - 2, 300, 9, stroke=0, fill=1)
         c.setFillColor(accent)
         c.rect(70, y - 2, 300 * row["count"] / total, 9, stroke=0, fill=1)

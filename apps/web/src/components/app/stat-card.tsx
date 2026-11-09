@@ -1,3 +1,4 @@
+"use client";
 import * as React from "react";
 import { ArrowDownRight, ArrowUpRight, Info } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -6,15 +7,22 @@ import { Skeleton } from "@/components/ui/states";
 import { cn } from "@/lib/utils";
 
 const ACCENTS = {
-  primary: "bg-primary-soft text-primary-soft-foreground",
-  blue: "bg-blue-soft text-blue",
-  purple: "bg-purple-soft text-purple",
-  cyan: "bg-cyan-soft text-cyan",
-  success: "bg-success-soft text-success-foreground",
-  warning: "bg-warning-soft text-warning-foreground",
-  danger: "bg-danger-soft text-danger-foreground",
+  primary: "text-primary",
+  blue: "text-ice",
+  ice: "text-ice",
+  mint: "text-mint",
+  cyan: "text-cyan",
+  amber: "text-amber",
+  success: "text-success",
+  warning: "text-warning",
+  danger: "text-danger",
 } as const;
 
+/**
+ * Metric instrument: mono micro-label, large tabular value, delta chip and an accent
+ * hairline that illuminates on hover. `value` may be a node (pre-formatted) — pair with
+ * <AnimatedNumber> from components/ui/tech for count-up.
+ */
 export function StatCard({
   label, value, delta, icon: Icon, accent = "primary", definition, footer, loading, invertDelta, className,
 }: {
@@ -31,32 +39,34 @@ export function StatCard({
 }) {
   const good = delta != null && (invertDelta ? delta < 0 : delta > 0);
   return (
-    <Card className={cn("card-hover relative overflow-hidden p-5", className)}>
+    <Card className={cn("group card-hover overflow-hidden p-5", className)}>
+      <span aria-hidden className={cn("absolute inset-x-5 top-0 h-px bg-current opacity-30 transition-opacity duration-300 group-hover:opacity-90", ACCENTS[accent])} />
+      <span aria-hidden className={cn("pointer-events-none absolute -right-10 -top-10 size-28 rounded-full bg-current opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-[0.10]", ACCENTS[accent])} />
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-1.5 text-[12.5px] font-medium text-muted-foreground">
-          {label}
+        <div className="flex items-center gap-1.5">
+          <span className="micro-label">{label}</span>
           {definition && (
             <Tooltip content={definition}>
-              <button aria-label={`About ${label}`} className="text-subtle-foreground hover:text-foreground"><Info className="size-3.5" /></button>
+              <button aria-label={`About ${label}`} className="text-subtle-foreground transition hover:text-foreground"><Info className="size-3" /></button>
             </Tooltip>
           )}
         </div>
-        {Icon && <span className={cn("flex size-9 items-center justify-center rounded-xl", ACCENTS[accent])}><Icon className="size-[18px]" /></span>}
+        {Icon && <Icon className={cn("size-4 opacity-80", ACCENTS[accent])} />}
       </div>
       {loading ? (
-        <Skeleton className="mt-3 h-8 w-24" />
+        <Skeleton className="mt-4 h-8 w-24" />
       ) : (
-        <div className="mt-2 flex items-baseline gap-2.5">
-          <span className="text-[28px] font-semibold leading-none tracking-[-0.03em] tabular text-foreground">{value}</span>
+        <div className="mt-3 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+          <span className="text-[28px] font-semibold leading-none tracking-[-0.035em] tabular text-foreground">{value}</span>
           {delta != null && (
-            <span className={cn("inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11.5px] font-semibold tabular", good ? "bg-success-soft text-success-foreground" : "bg-danger-soft text-danger-foreground")}>
+            <span className={cn("inline-flex items-center gap-0.5 rounded-[4px] px-1 py-0.5 font-mono text-[10.5px] font-medium tabular", good ? "bg-success-soft text-success-foreground" : "bg-danger-soft text-danger-foreground")}>
               {delta >= 0 ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
               {Math.abs(delta * 100).toFixed(1)}%
             </span>
           )}
         </div>
       )}
-      {footer && <div className="mt-3 text-xs text-muted-foreground">{footer}</div>}
+      {footer && <div className="mt-3 border-t border-border pt-2.5 text-[11.5px] text-muted-foreground">{footer}</div>}
     </Card>
   );
 }

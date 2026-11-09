@@ -25,11 +25,11 @@ export function ConfirmDialog({ trigger, title, description, confirmLabel = "Con
     <A.Root open={open} onOpenChange={(o) => { setOpen(o); if (!o) setTyped(""); }}>
       <A.Trigger asChild>{trigger}</A.Trigger>
       <A.Portal>
-        <A.Overlay className="fixed inset-0 z-50 bg-[rgb(10_8_25/0.45)] backdrop-blur-[2px]" />
-        <A.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-popover p-6 shadow-lg data-[state=open]:animate-[fade-up_0.2s_ease-out]">
+        <A.Overlay className="fixed inset-0 z-50 bg-[rgb(2_5_8/0.72)] backdrop-blur-[3px]" />
+        <A.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border-strong bg-popover p-6 hairline-top shadow-lg data-[state=open]:animate-[fade-up_0.2s_ease-out]">
           <div className="flex gap-4">
             {destructive && (
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-danger-soft text-danger-foreground">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-[color-mix(in_oklab,var(--danger)_30%,transparent)] bg-danger-soft text-danger-foreground">
                 <TriangleAlert className="size-5" />
               </div>
             )}

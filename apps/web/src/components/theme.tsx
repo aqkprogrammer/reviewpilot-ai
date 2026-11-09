@@ -6,18 +6,18 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenu
 
 type Theme = "light" | "dark" | "system";
 const Ctx = React.createContext<{ theme: Theme; resolved: "light" | "dark"; setTheme: (t: Theme) => void }>({
-  theme: "light",
-  resolved: "light",
+  theme: "dark",
+  resolved: "dark",
   setTheme: () => {},
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = React.useState<Theme>("light");
-  const [resolved, setResolved] = React.useState<"light" | "dark">("light");
+  const [theme, setThemeState] = React.useState<Theme>("dark");
+  const [resolved, setResolved] = React.useState<"light" | "dark">("dark");
 
   React.useEffect(() => {
     try {
-      setThemeState((localStorage.getItem("rp_theme") as Theme) || "light");
+      setThemeState((localStorage.getItem("rp_theme") as Theme) || "dark");
     } catch {}
   }, []);
 
@@ -56,8 +56,8 @@ export function ThemeToggle() {
       </DropdownMenuTrigger>
       <DropdownMenuContent className="min-w-36">
         <DropdownMenuRadioGroup value={theme} onValueChange={(v) => setTheme(v as Theme)}>
-          <DropdownMenuRadioItem value="light"><Sun className="mr-1 size-3.5" />Light</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark"><Moon className="mr-1 size-3.5" />Dark</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="light"><Sun className="mr-1 size-3.5" />Daylight</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="dark"><Moon className="mr-1 size-3.5" />Graphite</DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="system"><Monitor className="mr-1 size-3.5" />System</DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>

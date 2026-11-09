@@ -18,7 +18,7 @@ class QRCode(UUIDPk, Timestamps, SoftDelete, Base):
     campaign_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("campaigns.id", ondelete="SET NULL"))
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     code: Mapped[str] = mapped_column(String(16), unique=True, nullable=False)  # short code for /q/{code}
-    foreground: Mapped[str] = mapped_column(String(9), default="#16112b", nullable=False)
+    foreground: Mapped[str] = mapped_column(String(9), default="#0b1218", nullable=False)
     background: Mapped[str] = mapped_column(String(9), default="#ffffff", nullable=False)
     template: Mapped[str] = mapped_column(String(32), default="classic", nullable=False)
     logo_url: Mapped[str | None] = mapped_column(String(1024))

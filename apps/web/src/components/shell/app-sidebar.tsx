@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronsLeft, ChevronsRight, LifeBuoy, Sparkles } from "lucide-react";
+import { motion } from "motion/react";
+import { StatusDot } from "@/components/ui/tech";
 import { Logo, LogoMark } from "@/components/brand/logo";
 import { Tooltip } from "@/components/ui/controls";
 import { api } from "@/lib/api";
@@ -46,7 +48,7 @@ export function SidebarNav({ collapsed = false, onNavigate }: { collapsed?: bool
         if (!items.length) return null;
         return (
           <div key={group.label}>
-            {!collapsed && <p className="mb-2 px-3 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-subtle-foreground">{group.label}</p>}
+            {!collapsed && <p className="micro-label mb-2 px-3">{group.label}</p>}
             <ul className="flex flex-col gap-0.5">
               {items.map((item) => {
                 const active = item.href === "/app" ? pathname === "/app" : pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -57,17 +59,24 @@ export function SidebarNav({ collapsed = false, onNavigate }: { collapsed?: bool
                     onClick={onNavigate}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "group relative flex h-9 items-center gap-3 rounded-lg px-3 text-[13.5px] font-medium transition-all duration-200",
+                      "group relative flex h-9 items-center gap-3 rounded-md px-3 text-[13.5px] font-medium transition-colors duration-200",
                       collapsed && "justify-center px-0",
-                      active
-                        ? "bg-[linear-gradient(100deg,var(--primary),color-mix(in_oklab,var(--primary)_70%,var(--purple)))] text-white shadow-glow"
-                        : "text-sidebar-foreground hover:bg-muted hover:text-foreground",
+                      active ? "text-foreground" : "text-sidebar-foreground hover:bg-surface-hover/70 hover:text-foreground",
                     )}
                   >
-                    <item.icon className={cn("size-[17px] shrink-0", active ? "text-white" : "text-muted-foreground group-hover:text-foreground")} />
-                    {!collapsed && <span className="truncate">{item.label}</span>}
+                    {active && (
+                      <motion.span
+                        layoutId="app-nav-active"
+                        className="absolute inset-0 rounded-md border border-[color-mix(in_oklab,var(--primary)_22%,transparent)] bg-sidebar-active"
+                        transition={{ type: "spring", stiffness: 420, damping: 36 }}
+                      >
+                        <span className="absolute inset-y-1.5 -left-px w-[2px] rounded-full bg-primary shadow-[0_0_10px_var(--primary)]" />
+                      </motion.span>
+                    )}
+                    <item.icon className={cn("relative size-[17px] shrink-0 transition-colors", active ? "text-primary" : "text-subtle-foreground group-hover:text-foreground")} />
+                    {!collapsed && <span className="relative truncate">{item.label}</span>}
                     {!collapsed && !!badge && (
-                      <span className={cn("ml-auto rounded-full px-1.5 py-px text-[10.5px] font-semibold tabular", active ? "bg-white/20 text-white" : "bg-primary-soft text-primary-soft-foreground")}>
+                      <span className="relative ml-auto rounded-[4px] border border-[color-mix(in_oklab,var(--primary)_30%,transparent)] bg-primary-soft px-1.5 py-px font-mono text-[10px] font-medium tabular text-primary-soft-foreground">
                         {badge > 99 ? "99+" : badge}
                       </span>
                     )}
@@ -81,11 +90,12 @@ export function SidebarNav({ collapsed = false, onNavigate }: { collapsed?: bool
         );
       })}
       {!collapsed && membership.organization.plan_code && membership.organization.subscription_status === "trialing" && (
-        <Link href="/app/subscription" onClick={onNavigate} className="relative mx-1 overflow-hidden rounded-xl border border-primary/20 bg-primary-soft/60 p-3.5 transition hover:border-primary/40">
-          <div className="absolute -right-6 -top-6 size-20 rounded-full bg-primary/15 blur-2xl" aria-hidden />
+        <Link href="/app/subscription" onClick={onNavigate} className="tech-corners relative mx-1 overflow-hidden rounded-lg border border-border bg-card p-3.5 transition hover:border-border-strong">
+          <div className="absolute -right-8 -top-8 size-20 rounded-full bg-primary/15 blur-2xl" aria-hidden />
           <div className="flex items-center gap-2 text-[13px] font-semibold text-foreground">
             <Sparkles className="size-4 text-primary" /> Free trial active
           </div>
+          <p className="micro-label mt-1">Plan · {membership.organization.plan_code}</p>
           <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">Choose a plan to keep WhatsApp campaigns and AI replies running.</p>
         </Link>
       )}
@@ -94,10 +104,13 @@ export function SidebarNav({ collapsed = false, onNavigate }: { collapsed?: bool
 }
 
 export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+  const { membership, me } = useOrg();
+  const isDemo = membership.organization.is_demo || me.demo_mode;
   return (
     <aside
       className={cn(
         "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-300 ease-out lg:flex",
+        "bg-[linear-gradient(180deg,color-mix(in_oklab,var(--sidebar)_92%,var(--primary))_0%,var(--sidebar)_180px)]",
         collapsed ? "w-[76px]" : "w-[264px]",
       )}
     >
@@ -118,9 +131,19 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
             <ChevronsRight className="size-4" />
           </button>
         ) : (
-          <Link href="/app/settings?tab=support" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] text-sidebar-foreground transition hover:bg-muted hover:text-foreground">
-            <LifeBuoy className="size-4 text-muted-foreground" /> Help & support
-          </Link>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between rounded-md px-3 py-2">
+              <span className="micro-label">Data</span>
+              {isDemo ? (
+                <span className="flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.08em] text-amber"><StatusDot tone="warn" />DEMO</span>
+              ) : (
+                <span className="flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.08em] text-mint"><StatusDot tone="live" pulse />LIVE</span>
+              )}
+            </div>
+            <Link href="/app/settings?tab=support" className="flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] text-sidebar-foreground transition hover:bg-surface-hover hover:text-foreground">
+              <LifeBuoy className="size-4 text-subtle-foreground" /> Help & support
+            </Link>
+          </div>
         )}
       </div>
     </aside>

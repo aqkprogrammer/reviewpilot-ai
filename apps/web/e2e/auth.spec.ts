@@ -4,14 +4,19 @@ import { DEMO, PASSWORD, loginUI, uniqueEmail } from "./helpers";
 test.describe("authentication", () => {
   test("signup creates an account and starts onboarding", async ({ page }) => {
     await page.goto("/signup");
+    // 01 — Account identity
     await page.getByLabel(/full name/i).fill("Asha Verma");
     await page.getByLabel(/business email|^email/i).fill(uniqueEmail("signup"));
     await page.getByLabel(/^password/i).fill(PASSWORD);
     await page.getByLabel(/confirm password/i).fill(PASSWORD);
+    await page.getByRole("button", { name: /^continue/i }).click();
+    // 02 — Business profile
     await page.getByLabel(/business name/i).fill("Asha's Kitchen");
     await page.getByRole("combobox", { name: /business category/i }).click();
     await page.getByRole("option", { name: /restaurant/i }).click();
     await page.getByLabel(/phone/i).fill("+919876543210");
+    await page.getByRole("button", { name: /^continue/i }).click();
+    // 03 — Workspace configuration
     await page.getByRole("checkbox", { name: /terms/i }).check();
     await page.getByRole("button", { name: "Create account", exact: true }).click();
     await expect(page).toHaveURL(/\/onboarding/);
@@ -19,7 +24,7 @@ test.describe("authentication", () => {
 
   test("signup validates the form", async ({ page }) => {
     await page.goto("/signup");
-    await page.getByRole("button", { name: "Create account", exact: true }).click();
+    await page.getByRole("button", { name: /^continue/i }).click();
     await expect(page.getByText(/required|at least|enter|valid/i).first()).toBeVisible();
   });
 

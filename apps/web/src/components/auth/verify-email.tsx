@@ -51,8 +51,10 @@ export function VerifyEmail() {
   if (state === "loading") {
     return (
       <div className="flex flex-col items-center py-10 text-center">
-        <LoaderCircle className="size-8 animate-spin text-primary" />
-        <p className="mt-4 text-sm text-muted-foreground">Verifying your email…</p>
+        <span className="tech-corners flex size-12 items-center justify-center rounded-md border border-[color-mix(in_oklab,var(--primary)_35%,transparent)] bg-primary-soft">
+          <LoaderCircle className="size-5 animate-spin text-primary" />
+        </span>
+        <p className="mt-5 font-mono text-[10.5px] uppercase tracking-[0.16em] text-muted-foreground">Verifying your email…</p>
       </div>
     );
   }
@@ -60,7 +62,7 @@ export function VerifyEmail() {
     return (
       <div>
         <StatusIcon icon={CircleCheck} tone="success" />
-        <AuthHeading title="Email verified" description="Thanks for confirming your address. Your account is fully set up." />
+        <AuthHeading eyebrow="Email verification · complete" title="Email verified" description="Thanks for confirming your address. Your account is fully set up." />
         <Button asChild size="lg" className="w-full"><Link href={me.data ? "/app" : "/login"}>{me.data ? "Go to dashboard" : "Sign in"}</Link></Button>
       </div>
     );
@@ -68,7 +70,7 @@ export function VerifyEmail() {
   return (
     <div>
       <StatusIcon icon={MailWarning} tone="danger" />
-      <AuthHeading title="This link didn't work" description={message} />
+      <AuthHeading eyebrow="Email verification" title="This link didn't work" description={message} />
       {me.data ? (
         me.data.user.email_verified ? (
           <Button asChild size="lg" className="w-full"><Link href="/app">Your email is already verified — continue</Link></Button>

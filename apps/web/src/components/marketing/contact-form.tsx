@@ -40,10 +40,11 @@ export function ContactForm({ defaultMessage = "" }: { defaultMessage?: string }
   if (sent) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center" role="status">
-        <div className="flex size-12 items-center justify-center rounded-full bg-success-soft">
-          <CircleCheck className="size-6 text-success-foreground" />
+        <div className="tech-corners flex size-12 items-center justify-center rounded-md border border-[color-mix(in_oklab,var(--mint)_30%,transparent)] bg-mint-soft">
+          <CircleCheck className="size-6 text-mint" />
         </div>
-        <h2 className="mt-4 text-[18px] font-semibold text-foreground">Message received</h2>
+        <p className="micro-label mt-5 !text-mint">Sent</p>
+        <h2 className="mt-2 text-[20px] font-semibold tracking-[-0.02em] text-foreground">Message received</h2>
         <p className="mt-1.5 max-w-sm text-[14px] text-muted-foreground">Thanks for reaching out. Someone from our team will reply by email within one business day.</p>
         <Button variant="outline" className="mt-6" onClick={() => setSent(false)}>Send another message</Button>
       </div>

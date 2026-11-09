@@ -6,13 +6,14 @@ import { KeyRound, Laptop, MailCheck, Monitor, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar } from "@/components/ui/controls";
+import { Monogram, Panel } from "@/components/console/kit";
+import { StatusDot } from "@/components/ui/tech";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { InlineAlert, Skeleton } from "@/components/ui/states";
 import { api, errorMessage } from "@/lib/api";
 import { meQueryKey, useOrg } from "@/lib/session";
+import { cn } from "@/lib/utils";
 
 interface Session { id: string; created_at: string; last_used_at: string | null; expires_at: string; ip_address: string | null; user_agent: string | null; current: boolean }
 
@@ -60,61 +61,56 @@ export function ProfileTab() {
           We sent a verification link to {me.user.email}. Verification protects your account and is required for some integrations.
         </InlineAlert>
       )}
-      <Card>
-        <CardHeader><div><CardTitle>Your profile</CardTitle><CardDescription>Visible to teammates in your organizations</CardDescription></div></CardHeader>
-        <CardContent>
-          <form onSubmit={(e) => { e.preventDefault(); profile.mutate(); }} className="space-y-4">
-            <div className="flex items-center gap-4">
-              <Avatar name={me.user.full_name} src={me.user.avatar_url} size={52} />
-              <div>
-                <p className="flex items-center gap-2 text-[13px] font-medium">{me.user.email}{me.user.email_verified ? <Badge size="sm" variant="success" dot>Verified</Badge> : <Badge size="sm" variant="warning" dot>Unverified</Badge>}</p>
-                <p className="text-xs text-muted-foreground">Email changes require contacting support.</p>
-              </div>
+      <Panel index="01" label="Identity" title="Your profile" description="Visible to teammates in your organizations">
+        <form onSubmit={(e) => { e.preventDefault(); profile.mutate(); }} className="space-y-4">
+          <div className="flex items-center gap-4 rounded-lg border border-border bg-background-subtle/60 p-3.5">
+            <Monogram name={me.user.full_name} src={me.user.avatar_url} size={48} />
+            <div className="min-w-0">
+              <p className="flex flex-wrap items-center gap-2 text-[13px] font-medium"><span className="truncate">{me.user.email}</span>{me.user.email_verified ? <Badge size="sm" variant="success" mono dot>Verified</Badge> : <Badge size="sm" variant="warning" mono dot>Unverified</Badge>}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Email changes require contacting support.</p>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField label="Full name" htmlFor="p-name"><Input id="p-name" value={name} onChange={(e) => setName(e.target.value)} /></FormField>
-              <FormField label="Phone" htmlFor="p-phone"><Input id="p-phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91" /></FormField>
-            </div>
-            <div className="flex justify-end"><Button type="submit" size="sm" disabled={name.trim().length < 2} loading={profile.isPending}>Save profile</Button></div>
-          </form>
-        </CardContent>
-      </Card>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField label="Full name" htmlFor="p-name"><Input id="p-name" value={name} onChange={(e) => setName(e.target.value)} /></FormField>
+            <FormField label="Phone" htmlFor="p-phone"><Input id="p-phone" className="font-mono" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91" /></FormField>
+          </div>
+          <div className="flex justify-end"><Button type="submit" size="sm" disabled={name.trim().length < 2} loading={profile.isPending}>Save profile</Button></div>
+        </form>
+      </Panel>
 
-      <Card>
-        <CardHeader><div><CardTitle className="flex items-center gap-2"><KeyRound className="size-4 text-muted-foreground" />{me.user.has_password ? "Change password" : "Set a password"}</CardTitle><CardDescription>{me.user.has_password ? "Changing your password signs out every other session." : "You signed up with Google. Add a password to also sign in with email."}</CardDescription></div></CardHeader>
-        <CardContent>
-          <form onSubmit={submitPw} className="grid gap-4 sm:grid-cols-3" noValidate>
-            {me.user.has_password && <FormField label="Current password" htmlFor="pw-cur"><Input id="pw-cur" type="password" autoComplete="current-password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} /></FormField>}
-            <FormField label="New password" htmlFor="pw-new"><Input id="pw-new" type="password" autoComplete="new-password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} /></FormField>
-            <FormField label="Confirm new password" htmlFor="pw-conf"><Input id="pw-conf" type="password" autoComplete="new-password" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} /></FormField>
-            {pwErr && <p className="text-xs font-medium text-danger-foreground sm:col-span-3" role="alert">{pwErr}</p>}
-            <div className="flex justify-end sm:col-span-3"><Button type="submit" size="sm" disabled={!pw.next} loading={changePw.isPending}>Update password</Button></div>
-          </form>
-        </CardContent>
-      </Card>
+      <Panel index="02" label="Credentials" title={<><KeyRound className="size-4 text-primary" />{me.user.has_password ? "Change password" : "Set a password"}</>} description={me.user.has_password ? "Changing your password signs out every other session." : "You signed up with Google. Add a password to also sign in with email."}>
+        <form onSubmit={submitPw} className="grid gap-4 sm:grid-cols-3" noValidate>
+          {me.user.has_password && <FormField label="Current password" htmlFor="pw-cur"><Input id="pw-cur" type="password" autoComplete="current-password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} /></FormField>}
+          <FormField label="New password" htmlFor="pw-new"><Input id="pw-new" type="password" autoComplete="new-password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} /></FormField>
+          <FormField label="Confirm new password" htmlFor="pw-conf"><Input id="pw-conf" type="password" autoComplete="new-password" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} /></FormField>
+          {pwErr && <p className="text-xs font-medium text-danger-foreground sm:col-span-3" role="alert">{pwErr}</p>}
+          <div className="flex items-center justify-between gap-3 sm:col-span-3">
+            <p className="font-mono text-[10.5px] uppercase tracking-[0.1em] text-subtle-foreground">Min 8 chars · letters + numbers</p>
+            <Button type="submit" size="sm" disabled={!pw.next} loading={changePw.isPending}>Update password</Button>
+          </div>
+        </form>
+      </Panel>
 
-      <Card>
-        <CardHeader><div><CardTitle>Active sessions</CardTitle><CardDescription>Devices currently signed in to your account</CardDescription></div></CardHeader>
-        <CardContent>
-          {sessions.isLoading ? <Skeleton className="h-24" /> : (
-            <ul className="divide-y divide-border rounded-xl border border-border">
-              {sessions.data?.map((s) => {
-                const d = device(s.user_agent);
-                return (
-                  <li key={s.id} className="flex items-center gap-3 px-4 py-3">
-                    <d.icon className="size-4 text-muted-foreground" />
-                    <div className="min-w-0 flex-1">
-                      <p className="flex items-center gap-2 truncate text-[13px] font-medium">{d.label || "Unknown device"}{s.current && <Badge size="sm" variant="success" dot>This device</Badge>}</p>
-                      <p className="text-xs text-muted-foreground">{s.ip_address ?? "Unknown IP"} · active {s.last_used_at ? formatDistanceToNow(new Date(s.last_used_at), { addSuffix: true }) : "—"}</p>
-                    </div>
-                    {!s.current && <Button size="xs" variant="outline" loading={revoke.isPending && revoke.variables === s.id} onClick={() => revoke.mutate(s.id)}>Sign out</Button>}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+      <Panel index="03" label="Sessions" title="Active sessions" description="Devices currently signed in to your account" flush
+        actions={sessions.data && <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-subtle-foreground">{sessions.data.length} active</span>}>
+        {sessions.isLoading ? <div className="p-5"><Skeleton className="h-24" /></div> : (
+          <ul className="divide-y divide-border">
+            {sessions.data?.map((s) => {
+              const d = device(s.user_agent);
+              return (
+                <li key={s.id} className={cn("flex items-center gap-3 px-5 py-3", s.current && "bg-primary-soft/40")}>
+                  <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-md border", s.current ? "border-[color-mix(in_oklab,var(--primary)_40%,transparent)] text-primary" : "border-border text-muted-foreground")}><d.icon className="size-4" /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-2 text-[13px] font-medium">{d.label || "Unknown device"}{s.current && <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-primary"><StatusDot tone="signal" />This device</span>}</p>
+                    <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{s.ip_address ?? "unknown ip"} · active {s.last_used_at ? formatDistanceToNow(new Date(s.last_used_at), { addSuffix: true }) : "—"}</p>
+                  </div>
+                  {!s.current && <Button size="xs" variant="outline" loading={revoke.isPending && revoke.variables === s.id} onClick={() => revoke.mutate(s.id)}>Sign out</Button>}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Panel>
     </div>
   );
 }

@@ -33,7 +33,7 @@ class QRIn(BaseModel):
     name: str = Field(min_length=2, max_length=160)
     location_id: uuid.UUID
     campaign_id: uuid.UUID | None = None
-    foreground: str = Field("#16112b", pattern=HEX)
+    foreground: str = Field("#0b1218", pattern=HEX)
     background: str = Field("#ffffff", pattern=HEX)
     template: str = Field("classic", pattern="^(classic|minimal|bold)$")
     card_headline: str | None = Field(None, max_length=160)

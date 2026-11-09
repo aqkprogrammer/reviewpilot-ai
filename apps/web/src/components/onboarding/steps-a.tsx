@@ -35,12 +35,15 @@ export function WelcomeStep({ ctx }: { ctx: WizardCtx }) {
   return (
     <div>
       <StepHeader step={1} title={`Welcome, ${first}. Let's get you collecting reviews.`} description="About five minutes. Every integration can be skipped and finished later — your progress saves after each step." />
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2">
         {items.map((it, i) => (
-          <div key={i} className="rounded-2xl border border-border bg-card p-5 shadow-xs">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary"><it.icon className="size-5" /></span>
-            <p className="mt-4 text-[14px] font-semibold">{it.title}</p>
-            <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{it.body}</p>
+          <div key={i} className="bg-card p-5">
+            <div className="flex items-center justify-between">
+              <span className="flex size-10 items-center justify-center rounded-md border border-border bg-background-subtle text-primary"><it.icon className="size-5" /></span>
+              <span className="font-mono text-[10px] tracking-[0.12em] text-subtle-foreground">{`M.0${i + 1}`}</span>
+            </div>
+            <p className="mt-5 text-[14.5px] font-semibold">{it.title}</p>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{it.body}</p>
           </div>
         ))}
       </div>
@@ -178,8 +181,8 @@ export function LocationStep({ ctx }: { ctx: WizardCtx }) {
       {ctx.locations.length > 0 && (
         <ul className="mb-6 space-y-2">
           {ctx.locations.map((l) => (
-            <li key={l.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-xs">
-              <span className="flex size-9 items-center justify-center rounded-xl bg-success-soft text-success-foreground"><CircleCheck className="size-[18px]" /></span>
+            <li key={l.id} className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
+              <span className="flex size-9 items-center justify-center rounded-md border border-[color-mix(in_oklab,var(--mint)_28%,transparent)] bg-mint-soft text-mint"><CircleCheck className="size-[18px]" /></span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[14px] font-semibold">{l.name}</p>
                 <p className="truncate text-xs text-muted-foreground">{[l.address_line, l.city, l.state].filter(Boolean).join(", ") || "No address"}</p>
@@ -190,7 +193,8 @@ export function LocationStep({ ctx }: { ctx: WizardCtx }) {
         </ul>
       )}
       {adding ? (
-        <form onSubmit={handleSubmit(onSubmit)} noValidate className="rounded-2xl border border-border bg-background-subtle p-5">
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="rounded-lg border border-border bg-card/60 p-5 hairline-top">
+          <p className="micro-label mb-4">{ctx.locations.length ? "Add another location" : "Location 01"}</p>
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField label="Location name" htmlFor="loc-name" error={errors.name?.message} required hint="e.g. “Bandra West” or your business name" className="sm:col-span-2">
               <Input id="loc-name" invalid={!!errors.name} {...register("name")} />
@@ -289,9 +293,9 @@ export function GoogleStep({ ctx }: { ctx: WizardCtx }) {
     <div>
       <StepHeader step={4} icon={GoogleIcon} title="Connect Google reviews" description="Sync your Google reviews and reply from ReviewPilot — or simply add your Google review link so customers can reach it in one tap." />
 
-      <div className="rounded-2xl border border-border bg-card p-5 shadow-xs">
+      <div className="rounded-lg border border-border bg-card p-5 hairline-top">
         <div className="flex flex-wrap items-start gap-4">
-          <span className="flex size-11 items-center justify-center rounded-xl border border-border bg-white"><GoogleIcon className="size-5" /></span>
+          <span className="flex size-11 items-center justify-center rounded-md border border-border bg-background-subtle"><GoogleIcon className="size-5" /></span>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-[15px] font-semibold">Google Business Profile</p>

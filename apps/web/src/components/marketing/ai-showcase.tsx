@@ -1,10 +1,10 @@
 "use client";
 import * as React from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { Sparkles, Tag, ListChecks, Gauge, Languages } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { Sparkles, Tag, ListChecks, Gauge, Languages, Check } from "lucide-react";
 import { Stars } from "@/components/ui/stars";
 import { GoogleIcon } from "@/components/brand/brand-icons";
-import { Section, SectionHeading } from "./primitives";
+import { Eyebrow, Section, SectionIndex, SampleTag } from "./primitives";
 import { cn } from "@/lib/utils";
 
 const TONES = ["Professional", "Friendly", "Empathetic", "Appreciative", "Concise", "Apologetic"] as const;
@@ -61,118 +61,147 @@ const REPLIES: Record<Lang, Record<Tone, string>> = {
 export function AiShowcase() {
   const [tone, setTone] = React.useState<Tone>("Empathetic");
   const [lang, setLang] = React.useState<Lang>("en");
+  const reduce = useReducedMotion();
 
   return (
     <Section id="ai-assistant" className="overflow-hidden">
-      <div className="grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr]">
-        <div>
-          <SectionHeading
-            align="left"
-            eyebrow="AI Review Assistant"
-            title="Replies that sound like you, in the language your customers speak"
-            description="Pick a tone, pick a language, and ReviewPilot drafts a thoughtful reply from the review itself — with sentiment, key themes and a suggested follow-up for your team. You approve every word before it goes live."
-          />
-          <ul className="mt-8 space-y-3 text-[14px] text-foreground-soft">
+      <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-14">
+        <div className="lg:order-2 lg:col-span-5">
+          <div className="flex items-center gap-4">
+            <SectionIndex n={5} total={9} />
+            <Eyebrow>AI review assistant</Eyebrow>
+          </div>
+          <h2 className="mt-5 text-balance text-[32px] font-semibold leading-[1.04] tracking-[-0.038em] text-foreground sm:text-[42px]">
+            Replies that sound like you, in the language your customers speak
+          </h2>
+          <p className="mt-5 text-pretty text-[15px] leading-relaxed text-muted-foreground">
+            Pick a tone, pick a language, and ReviewPilot drafts a thoughtful reply from the review itself — with sentiment, key themes and a suggested follow-up for your team. You approve every word before it goes live.
+          </p>
+          <ul className="mt-8 divide-y divide-border border-y border-border">
             {[
               "Negative reviews get calm, empathetic drafts that never argue or reveal private details",
               "English, Hindi and Hinglish, matched to how the customer wrote",
               "Auto-publish stays off unless an owner explicitly enables it",
-            ].map((t) => (
-              <li key={t} className="flex gap-3">
-                <span className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+            ].map((t, i) => (
+              <li key={t} className="flex gap-4 py-3.5 text-[14px] leading-relaxed text-foreground-soft">
+                <span className="mt-0.5 font-mono text-[10.5px] text-primary">{String(i + 1).padStart(2, "0")}</span>
                 {t}
               </li>
             ))}
           </ul>
         </div>
 
-        <div className="relative">
-          <div className="absolute -inset-6 -z-10 rounded-[32px] bg-[radial-gradient(ellipse_at_top_right,rgba(214,58,240,0.14),transparent_60%),radial-gradient(ellipse_at_bottom_left,rgba(106,76,255,0.14),transparent_60%)]" aria-hidden />
-          <div className="rounded-[24px] border border-border bg-card p-5 shadow-lg sm:p-6">
-            <div className="flex items-start gap-3 rounded-2xl bg-background-subtle p-4">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#fff1e0] text-[12px] font-semibold text-[#b45309]">VA</div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-[13.5px] font-semibold text-foreground">Vikram A.</p>
-                  <GoogleIcon className="size-4" />
+        <div className="relative lg:order-1 lg:col-span-7">
+          <div className="pointer-events-none absolute -inset-10 bg-[radial-gradient(closest-side,color-mix(in_oklab,var(--cyan)_12%,transparent),transparent)]" aria-hidden />
+          <div className="tech-corners relative rounded-xl border border-border-strong bg-card/85 shadow-lg hairline-top">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 sm:px-5">
+              <span className="micro-label">Reply studio · try it</span>
+              <SampleTag>Sample review</SampleTag>
+            </div>
+            <div className="p-4 sm:p-5">
+              <div className="flex items-start gap-3 rounded-lg border border-border bg-background-subtle p-4">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border-strong bg-card font-mono text-[11px] text-foreground-soft">VA</div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[13.5px] font-semibold text-foreground">Vikram A.</p>
+                    <GoogleIcon className="size-4" />
+                  </div>
+                  <Stars rating={3} size={12} className="mt-1" />
+                  <p className="mt-2 text-[13.5px] leading-relaxed text-foreground-soft">
+                    Food was good but we waited 40 minutes for our order and nobody updated us. Not what I expected for a Saturday dinner.
+                  </p>
                 </div>
-                <Stars rating={3} size={12} className="mt-0.5" />
-                <p className="mt-2 text-[13.5px] leading-relaxed text-foreground-soft">
-                  Food was good but we waited 40 minutes for our order and nobody updated us. Not what I expected for a Saturday dinner.
-                </p>
               </div>
-            </div>
 
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Reply tone">
-                {TONES.map((t) => (
-                  <button
-                    key={t}
-                    role="radio"
-                    aria-checked={tone === t}
-                    onClick={() => setTone(t)}
-                    className={cn(
-                      "rounded-full border px-3 py-1 text-[12.5px] font-medium transition",
-                      tone === t ? "border-primary bg-primary text-white shadow-glow" : "border-border text-foreground-soft hover:border-border-strong",
-                    )}
+              <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+                <div>
+                  <p className="micro-label mb-2" id="ai-tone-label">Tone</p>
+                  <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-labelledby="ai-tone-label">
+                    {TONES.map((t) => (
+                      <button
+                        key={t}
+                        role="radio"
+                        aria-checked={tone === t}
+                        onClick={() => setTone(t)}
+                        className={cn(
+                          "inline-flex h-7 items-center gap-1 rounded-md border px-2.5 text-[12px] font-medium transition focus-visible:outline-none focus-visible:ring-[1.5px] focus-visible:ring-ring",
+                          tone === t
+                            ? "border-[color-mix(in_oklab,var(--primary)_55%,transparent)] bg-primary-soft text-primary shadow-[0_0_14px_-4px_var(--primary)]"
+                            : "border-border text-foreground-soft hover:border-border-strong hover:text-foreground",
+                        )}
+                      >
+                        {tone === t && <Check className="size-3" />}
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="micro-label mb-2" id="ai-lang-label">
+                    <Languages className="mr-1 inline size-3 -translate-y-px" aria-hidden /> Language
+                  </p>
+                  <div className="inline-flex items-center gap-0.5 rounded-md border border-border bg-background-subtle p-0.5" role="radiogroup" aria-labelledby="ai-lang-label">
+                    {LANGS.map((l) => (
+                      <button
+                        key={l.id}
+                        role="radio"
+                        aria-checked={lang === l.id}
+                        onClick={() => setLang(l.id)}
+                        className={cn(
+                          "relative h-6 rounded-[5px] px-2.5 text-[12px] font-medium transition focus-visible:outline-none focus-visible:ring-[1.5px] focus-visible:ring-ring",
+                          lang === l.id ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {lang === l.id && <motion.span layoutId="ai-lang" className="absolute inset-0 rounded-[5px] border border-border-strong bg-card" transition={{ type: "spring", stiffness: 420, damping: 36 }} />}
+                        <span className="relative">{l.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative mt-5 overflow-hidden rounded-lg border border-[color-mix(in_oklab,var(--primary)_26%,transparent)] bg-primary-soft p-4 before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:bg-primary">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-primary">
+                    <Sparkles className="size-3.5" /> Suggested reply · {tone}
+                  </p>
+                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-subtle-foreground">{lang === "hinglish" ? "HI-LATN" : lang.toUpperCase()}</span>
+                </div>
+                <AnimatePresence mode="wait">
+                  <motion.p
+                    key={`${tone}-${lang}`}
+                    lang={lang === "hi" ? "hi" : "en"}
+                    initial={reduce ? false : { opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={reduce ? undefined : { opacity: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="mt-2.5 min-h-[96px] text-[14px] leading-relaxed text-foreground"
+                    aria-live="polite"
                   >
-                    {t}
-                  </button>
-                ))}
+                    {REPLIES[lang][tone]}
+                  </motion.p>
+                </AnimatePresence>
               </div>
-              <div className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-muted/70 p-0.5" role="radiogroup" aria-label="Reply language">
-                <Languages className="mx-1.5 size-3.5 text-muted-foreground" aria-hidden />
-                {LANGS.map((l) => (
-                  <button
-                    key={l.id}
-                    role="radio"
-                    aria-checked={lang === l.id}
-                    onClick={() => setLang(l.id)}
-                    className={cn("rounded-md px-2.5 py-1 text-[12px] font-medium transition", lang === l.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
-                  >
-                    {l.label}
-                  </button>
-                ))}
-              </div>
-            </div>
 
-            <div className="mt-4 rounded-2xl border border-primary/20 bg-primary-soft/40 p-4">
-              <p className="flex items-center gap-1.5 text-[12px] font-semibold text-primary-soft-foreground">
-                <Sparkles className="size-3.5" /> Suggested reply · {tone}
-              </p>
-              <AnimatePresence mode="wait">
-                <motion.p
-                  key={`${tone}-${lang}`}
-                  lang={lang === "hi" ? "hi" : "en"}
-                  initial={{ opacity: 0, filter: "blur(4px)" }}
-                  animate={{ opacity: 1, filter: "blur(0px)" }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="mt-2 min-h-[96px] text-[14px] leading-relaxed text-foreground"
-                >
-                  {REPLIES[lang][tone]}
-                </motion.p>
-              </AnimatePresence>
+              <dl className="mt-4 grid divide-y divide-border rounded-lg border border-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+                <div className="p-3">
+                  <dt className="micro-label flex items-center gap-1.5"><Gauge className="size-3" /> Sentiment</dt>
+                  <dd className="mt-1.5 font-mono text-[13px] text-amber">Mixed · 0.42</dd>
+                </div>
+                <div className="p-3">
+                  <dt className="micro-label flex items-center gap-1.5"><Tag className="size-3" /> Keywords</dt>
+                  <dd className="mt-1.5 flex flex-wrap gap-1">
+                    {["wait time", "food", "updates"].map((k) => (
+                      <span key={k} className="rounded-[4px] border border-border bg-background-subtle px-1.5 py-0.5 font-mono text-[10.5px] text-foreground-soft">{k}</span>
+                    ))}
+                  </dd>
+                </div>
+                <div className="p-3">
+                  <dt className="micro-label flex items-center gap-1.5"><ListChecks className="size-3" /> Follow-up</dt>
+                  <dd className="mt-1.5 text-[12.5px] leading-snug text-foreground-soft">Review Saturday kitchen staffing</dd>
+                </div>
+              </dl>
             </div>
-
-            <dl className="mt-4 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-border p-3">
-                <dt className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-subtle-foreground"><Gauge className="size-3" /> Sentiment</dt>
-                <dd className="mt-1.5 text-[13px] font-semibold text-warning-foreground">Mixed · 0.42</dd>
-              </div>
-              <div className="rounded-xl border border-border p-3">
-                <dt className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-subtle-foreground"><Tag className="size-3" /> Keywords</dt>
-                <dd className="mt-1.5 flex flex-wrap gap-1">
-                  {["wait time", "food", "updates"].map((k) => (
-                    <span key={k} className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-foreground-soft">{k}</span>
-                  ))}
-                </dd>
-              </div>
-              <div className="rounded-xl border border-border p-3">
-                <dt className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-subtle-foreground"><ListChecks className="size-3" /> Follow-up</dt>
-                <dd className="mt-1.5 text-[12px] leading-snug text-foreground-soft">Review Saturday kitchen staffing</dd>
-              </div>
-            </dl>
           </div>
         </div>
       </div>
