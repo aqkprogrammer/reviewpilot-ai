@@ -72,20 +72,33 @@ export const DEFAULT_PLANS: PublicPlan[] = [
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
-/** Server-side fetch of the live plan catalogue with graceful fallback. */
+/**
+ * Server-side fetch of the live plan catalogue with graceful fallback.
+ *
+ * - Never touches the network during `next build`: builds must not depend on the API being
+ *   reachable (on Render the API may be redeploying at the same moment). Pages that call this
+ *   export `revalidate = 300`, so live prices replace the defaults within five minutes.
+ * - Hard 2.5 s ceiling via Promise.race, because the patched fetch used during prerendering
+ *   doesn't reliably honour AbortSignal timeouts.
+ */
 export async function getPublicPlans(): Promise<PublicPlan[]> {
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/v1/subscriptions/plans`, {
-      next: { revalidate: 300 },
-      signal: AbortSignal.timeout(2500),
-    });
-    if (!res.ok) return DEFAULT_PLANS;
-    const data = (await res.json()) as PublicPlan[] | { items: PublicPlan[] };
-    const plans = Array.isArray(data) ? data : data.items;
-    return plans?.length ? plans : DEFAULT_PLANS;
-  } catch {
-    return DEFAULT_PLANS;
-  }
+  if (process.env.NEXT_PHASE === "phase-production-build") return DEFAULT_PLANS;
+  const timeout = new Promise<PublicPlan[]>((resolve) => setTimeout(() => resolve(DEFAULT_PLANS), 2500));
+  const live = (async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/v1/subscriptions/plans`, {
+        next: { revalidate: 300 },
+        signal: AbortSignal.timeout(2500),
+      });
+      if (!res.ok) return DEFAULT_PLANS;
+      const data = (await res.json()) as PublicPlan[] | { items: PublicPlan[] };
+      const plans = Array.isArray(data) ? data : data.items;
+      return plans?.length ? plans : DEFAULT_PLANS;
+    } catch {
+      return DEFAULT_PLANS;
+    }
+  })();
+  return Promise.race([live, timeout]);
 }
 
 export function formatINR(minor: number) {

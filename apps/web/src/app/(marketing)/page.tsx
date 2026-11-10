@@ -32,6 +32,9 @@ export const metadata: Metadata = {
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
+/** Live plan prices are refreshed from the API at most every five minutes (ISR). */
+export const revalidate = 300;
+
 export default async function HomePage() {
   const plans = await getPublicPlans();
   const preview = plans.filter((p) => !p.is_custom_pricing).slice(0, 3);

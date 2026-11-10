@@ -62,6 +62,9 @@ function Value({ v }: { v: Cell }) {
   return <span className="font-mono text-[12px] text-foreground">{v}</span>;
 }
 
+/** Live plan prices are refreshed from the API at most every five minutes (ISR). */
+export const revalidate = 300;
+
 export default async function PricingPage() {
   const plans = await getPublicPlans();
   return (
