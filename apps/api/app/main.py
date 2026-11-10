@@ -83,5 +83,6 @@ if not settings.s3_configured:
 
 
 @app.get("/healthz", include_in_schema=False)
+@app.get("/api/v1/health", include_in_schema=False)  # same-origin wake-up ping used by the web app
 async def healthz():
     return {"status": "ok"}

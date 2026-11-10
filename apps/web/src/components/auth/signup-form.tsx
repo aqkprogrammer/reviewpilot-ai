@@ -1,4 +1,6 @@
 "use client";
+import { useServerWaking } from "@/lib/use-server-waking";
+import { WakingNote } from "./login-form";
 import * as React from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -105,6 +107,7 @@ export function SignupForm() {
   const next = params.get("next");
   const [formError, setFormError] = React.useState<{ code: string; message: string } | null>(null);
   const [section, setSection] = React.useState(0);
+  const waking = useServerWaking({ warmUp: true });
   const [dir, setDir] = React.useState(1);
   const presetIndustry = INDUSTRIES.find((i) => i.value === params.get("industry"))?.value;
   const planCode = params.get("plan");
@@ -351,6 +354,7 @@ export function SignupForm() {
             </Button>
           )}
         </div>
+        {waking && <div className="mt-4"><WakingNote /></div>}
       </form>
       <p className="mt-8 border-t border-border pt-6 text-center text-[13.5px] text-muted-foreground">
         Already have an account?{" "}

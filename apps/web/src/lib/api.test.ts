@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiError, api, errorMessage, setActiveOrgId } from "./api";
+import { ApiError, api, errorMessage, setActiveOrgId, subscribeServerWaking } from "./api";
 
 function json(status: number, body: unknown) {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -78,4 +78,39 @@ describe("api client", () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
     await expect(api.delete("/locations/1")).resolves.toBeUndefined();
   });
+
+  describe("cold start", () => {
+    const edge502 = () => new Response("<html><title>502</title></html>", { status: 502, headers: { "Content-Type": "text/html" } });
+
+    afterEach(() => vi.useRealTimers());
+
+    it("retries an edge 502 until the API wakes, and reports waking state", async () => {
+      vi.useFakeTimers();
+      const states: boolean[] = [];
+      const unsub = subscribeServerWaking((w) => states.push(w));
+      fetchMock.mockResolvedValueOnce(edge502()).mockResolvedValueOnce(edge502()).mockResolvedValueOnce(json(200, { ok: true }));
+      const p = api.post<{ ok: boolean }>("/auth/login", { email: "a@b.co", password: "x" }, { orgId: null });
+      await vi.advanceTimersByTimeAsync(10_000);
+      await expect(p).resolves.toEqual({ ok: true });
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(states).toEqual([true, false]);
+      unsub();
+    });
+
+    it("does not retry a 503 that carries the API's own error envelope", async () => {
+      fetchMock.mockResolvedValueOnce(json(503, { error: { code: "maintenance", message: "Down for maintenance" } }));
+      await expect(api.get("/reviews")).rejects.toMatchObject({ status: 503, code: "maintenance" });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("gives a friendly message when the server never wakes", async () => {
+      vi.useFakeTimers();
+      fetchMock.mockImplementation(async () => edge502());
+      const p = api.get("/reviews");
+      const assertion = expect(p).rejects.toThrow("still starting up");
+      await vi.advanceTimersByTimeAsync(130_000);
+      await assertion;
+    });
+  });
 });
+

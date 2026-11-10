@@ -6,6 +6,9 @@
  * - Sends the double-submit CSRF token on unsafe methods.
  * - Sends the active organization via `X-Organization-Id`; the server verifies membership.
  * - Transparently rotates the refresh token once on `token_expired`.
+ * - Rides out a cold start: when the hosting edge answers 502/503/504 (not our JSON error
+ *   envelope, so the request never reached the API) or the network drops, it retries with
+ *   backoff for up to ~2 minutes and tells subscribers the server is waking up.
  */
 
 export class ApiError extends Error {
@@ -72,10 +75,88 @@ interface RequestOptions {
   raw?: boolean;
 }
 
+// ------------------------------------------------------------------ cold-start handling
+
+const WAKE_STATUSES = new Set([502, 503, 504]);
+const WAKE_BUDGET_MS = 120_000;
+const WAKE_DELAYS_MS = [1500, 3000, 5000, 8000];
+
+type WakeListener = (waking: boolean) => void;
+const wakeListeners = new Set<WakeListener>();
+let wakingCount = 0;
+
+/** Subscribe to "the API is starting up" — returns an unsubscribe function. */
+export function subscribeServerWaking(fn: WakeListener) {
+  wakeListeners.add(fn);
+  return () => void wakeListeners.delete(fn);
+}
+
+function setWaking(delta: 1 | -1) {
+  const before = wakingCount > 0;
+  wakingCount = Math.max(0, wakingCount + delta);
+  const after = wakingCount > 0;
+  if (before !== after) wakeListeners.forEach((fn) => fn(after));
+}
+
+/** True when the response came from the hosting edge rather than the API (no JSON error envelope). */
+async function isEdgeFailure(res: Response) {
+  if (!WAKE_STATUSES.has(res.status)) return false;
+  if (!(res.headers.get("content-type") ?? "").includes("application/json")) return true;
+  const body = await res.clone().json().catch(() => null);
+  return !body?.error;
+}
+
+function sleep(ms: number, signal?: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    const t = setTimeout(resolve, ms);
+    signal?.addEventListener("abort", () => {
+      clearTimeout(t);
+      reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+    }, { once: true });
+  });
+}
+
+/** fetch() that waits out a sleeping backend instead of surfacing a 502. */
+export async function fetchWithWake(input: string, init: RequestInit = {}): Promise<Response> {
+  const started = Date.now();
+  let attempt = 0;
+  let waking = false;
+  try {
+    for (;;) {
+      let res: Response | null = null;
+      let netErr: unknown = null;
+      try {
+        res = await fetch(input, init);
+      } catch (e) {
+        if (init.signal?.aborted) throw e;
+        netErr = e;
+      }
+      const retryable = res ? await isEdgeFailure(res) : true;
+      if (!retryable || Date.now() - started > WAKE_BUDGET_MS) {
+        if (res) return res;
+        throw netErr;
+      }
+      if (!waking) {
+        waking = true;
+        setWaking(1);
+      }
+      await sleep(WAKE_DELAYS_MS[Math.min(attempt++, WAKE_DELAYS_MS.length - 1)], init.signal ?? undefined);
+    }
+  } finally {
+    if (waking) setWaking(-1);
+  }
+}
+
+/** Fire-and-forget ping so the API starts booting while the user is still typing. */
+export function warmUpApi() {
+  if (typeof window === "undefined") return;
+  fetchWithWake("/api/v1/health", { cache: "no-store" }).catch(() => {});
+}
+
 let refreshing: Promise<boolean> | null = null;
 
 async function refreshSession() {
-  refreshing ??= fetch("/api/v1/auth/refresh", {
+  refreshing ??= fetchWithWake("/api/v1/auth/refresh", {
     method: "POST",
     credentials: "include",
     headers: { "X-CSRF-Token": decodeURIComponent(readCookie("rp_csrf") ?? "") },
@@ -97,7 +178,7 @@ async function request<T>(path: string, opts: RequestOptions = {}, retried = fal
   const orgId = opts.orgId === undefined ? getActiveOrgId() : opts.orgId;
   if (orgId) headers["X-Organization-Id"] = orgId;
 
-  const res = await fetch(buildUrl(path, opts.query), {
+  const res = await fetchWithWake(buildUrl(path, opts.query), {
     method,
     headers,
     credentials: "include",
@@ -115,7 +196,10 @@ async function request<T>(path: string, opts: RequestOptions = {}, retried = fal
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     const err = body?.error;
-    throw new ApiError(res.status, err?.code ?? "http_error", err?.message ?? `Request failed (${res.status})`, err?.details);
+    const fallback = WAKE_STATUSES.has(res.status)
+      ? "The server is still starting up. Please try again in a moment."
+      : `Request failed (${res.status})`;
+    throw new ApiError(res.status, err?.code ?? "http_error", err?.message ?? fallback, err?.details);
   }
   if (opts.raw) return res as unknown as T;
   if (res.status === 204) return undefined as T;

@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { InlineAlert } from "@/components/ui/states";
 import { ApiError, api, setActiveOrgId } from "@/lib/api";
 import { meQueryKey } from "@/lib/session";
+import { useServerWaking } from "@/lib/use-server-waking";
 import type { Me } from "@/lib/types";
 import { AuthHeading } from "./auth-shell";
 import { OAUTH_ERRORS, postAuthRoute, safeNext } from "./auth-utils";
@@ -37,6 +38,7 @@ export function LoginForm() {
   const next = params.get("next");
   const oauthError = params.get("error");
   const [formError, setFormError] = React.useState<{ code: string; message: string } | null>(null);
+  const waking = useServerWaking({ warmUp: true });
 
   const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<Values>({
     resolver: zodResolver(schema),
@@ -67,8 +69,8 @@ export function LoginForm() {
       <TerminalPanel
         label="Workspace access"
         status={
-          <span className="inline-flex items-center gap-1.5">
-            <StatusDot tone="signal" /> Ready
+          <span className="inline-flex items-center gap-1.5" role="status" aria-live="polite">
+            {waking ? <><StatusDot tone="warn" pulse /> Starting server</> : <><StatusDot tone="signal" /> Ready</>}
           </span>
         }
       >
@@ -106,6 +108,7 @@ export function LoginForm() {
           <Button type="submit" variant="gradient" size="lg" className="w-full" loading={isSubmitting}>
             Sign in {!isSubmitting && <ArrowRight />}
           </Button>
+          {waking && <WakingNote />}
         </form>
       </TerminalPanel>
 
@@ -114,5 +117,14 @@ export function LoginForm() {
         <Link href={`/signup${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="font-semibold text-primary underline-offset-4 hover:underline">Create an account</Link>
       </p>
     </>
+  );
+}
+
+/** Shown while a request waits for the hosted API to boot after idling. */
+export function WakingNote() {
+  return (
+    <p className="text-center text-[12.5px] leading-relaxed text-muted-foreground" role="status">
+      Waking the server after a quiet spell. This can take up to a minute on the first request. You don&apos;t need to resubmit.
+    </p>
   );
 }
