@@ -11,7 +11,12 @@ from arq.worker import func
 
 from app.core.config import settings
 from app.services.jobs import run_tracked
-from app.worker.tasks import TASKS
+from app.worker import tasks_automations, tasks_digest, tasks_recovery
+from app.worker.tasks import TASKS as CORE_TASKS
+
+# Feature modules contribute their own tasks and crons (kept in separate files).
+_FEATURES = (tasks_automations, tasks_recovery, tasks_digest)
+TASKS = {**CORE_TASKS, **{k: v for m in _FEATURES for k, v in m.TASKS.items()}}
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -48,6 +53,7 @@ class WorkerSettings:
         cron(_cron_job(TASKS["subscription_maintenance"]), name="cron_subscription_maintenance", hour={1}, minute={30}),
         cron(_cron_job(TASKS["purge_deleted_organizations"]), name="cron_purge_deleted_organizations", hour={2}, minute={15}),
     ]
+    cron_jobs += [cron(_cron_job(TASKS[name]), name=f"cron_{name}", **kw) for m in _FEATURES for name, kw in m.CRONS]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     on_startup = startup
     max_jobs = 20

@@ -23,6 +23,8 @@ from app.models import (
     AIGeneration,
     AIInsight,
     AIUsage,
+    ApiKey,
+    AutomationRule,
     Campaign,
     CampaignTemplate,
     Customer,
@@ -36,9 +38,11 @@ from app.models import (
     Organization,
     OrganizationMember,
     QRCode,
+    RecoveryCase,
     Review,
     ReviewRequest,
     Subscription,
+    VisitEvent,
 )
 from app.models.enums import SubscriptionStatus
 from app.services import audit
@@ -48,6 +52,10 @@ GRACE_DAYS = 30
 
 # Order matters only for readability; child rows cascade from these parents.
 _ORG_SCOPED = (
+    VisitEvent,
+    RecoveryCase,
+    AutomationRule,
+    ApiKey,
     ReviewRequest,  # → message_deliveries (cascade)
     FeedbackSubmission,
     Review,  # → review_replies (cascade)

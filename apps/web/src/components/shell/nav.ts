@@ -1,5 +1,5 @@
 import {
-  BarChart3, Bot, Building2, CreditCard, LayoutDashboard, MapPin, Megaphone, MessageSquareText, Plug, QrCode, Send, Settings, Users, UsersRound,
+  BarChart3, Bot, Building2, CreditCard, HeartHandshake, LayoutDashboard, Newspaper, Zap, MapPin, Megaphone, MessageSquareText, Plug, QrCode, Send, Settings, Users, UsersRound,
 } from "lucide-react";
 import type { Permission } from "@reviewpilot/shared-types";
 
@@ -8,7 +8,7 @@ export interface NavItem {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   permission?: Permission;
-  badgeKey?: "pending_reviews";
+  badgeKey?: "pending_reviews" | "open_recovery";
 }
 
 export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
@@ -18,6 +18,8 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { label: "Overview", href: "/app", icon: LayoutDashboard },
       { label: "Reviews", href: "/app/reviews", icon: MessageSquareText, permission: "reviews.read", badgeKey: "pending_reviews" },
       { label: "Review Requests", href: "/app/review-requests", icon: Send, permission: "customers.read" },
+      { label: "Automations", href: "/app/automations", icon: Zap, permission: "campaigns.manage" },
+      { label: "Recovery", href: "/app/recovery", icon: HeartHandshake, permission: "reviews.read", badgeKey: "open_recovery" },
       { label: "Campaigns", href: "/app/campaigns", icon: Megaphone, permission: "reviews.read" },
       { label: "QR Codes", href: "/app/qr-codes", icon: QrCode },
       { label: "Customers", href: "/app/customers", icon: UsersRound, permission: "customers.read" },
@@ -28,6 +30,7 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { label: "AI Assistant", href: "/app/ai-assistant", icon: Bot, permission: "ai.use" },
       { label: "Analytics", href: "/app/analytics", icon: BarChart3, permission: "analytics.read" },
+      { label: "Weekly digest", href: "/app/digest", icon: Newspaper, permission: "analytics.read" },
     ],
   },
   {

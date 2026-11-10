@@ -5,9 +5,11 @@ from app.api.v1 import (
     ai,
     analytics,
     auth,
+    automations,
     campaigns,
     customers,
     dev,
+    digest,
     integrations,
     locations,
     notifications,
@@ -15,6 +17,7 @@ from app.api.v1 import (
     organizations,
     public,
     qr_codes,
+    recovery,
     reviews,
     subscriptions,
     team,
@@ -23,7 +26,7 @@ from app.api.v1 import (
 )
 
 api_router = APIRouter()
-for module in (admin, auth, organizations, onboarding, locations, team, reviews, customers, campaigns, qr_codes, analytics, ai, integrations, subscriptions, notifications, webhooks, dev, telemetry):
+for module in (admin, auth, organizations, onboarding, locations, team, reviews, customers, campaigns, qr_codes, analytics, ai, integrations, subscriptions, notifications, webhooks, dev, telemetry, automations, recovery, digest):
     api_router.include_router(module.router)
 api_router.include_router(public.router)
 api_router.include_router(public.inbox)

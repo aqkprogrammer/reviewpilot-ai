@@ -34,6 +34,12 @@ export function useSidebarState() {
 export function SidebarNav({ collapsed = false, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
   const { can, orgId, membership } = useOrg();
+  const recovery = useQuery({
+    queryKey: ["recovery", "summary", orgId],
+    queryFn: () => api.get<{ open: number }>("/recovery/summary"),
+    enabled: can("reviews.read"),
+    refetchInterval: 120_000,
+  });
   const stats = useQuery({
     queryKey: ["reviews", "stats", orgId],
     queryFn: () => api.get<{ pending: number; negative_pending: number }>("/reviews/stats"),
@@ -52,7 +58,7 @@ export function SidebarNav({ collapsed = false, onNavigate }: { collapsed?: bool
             <ul className="flex flex-col gap-0.5">
               {items.map((item) => {
                 const active = item.href === "/app" ? pathname === "/app" : pathname === item.href || pathname.startsWith(`${item.href}/`);
-                const badge = item.badgeKey === "pending_reviews" ? stats.data?.pending : undefined;
+                const badge = item.badgeKey === "pending_reviews" ? stats.data?.pending : item.badgeKey === "open_recovery" ? recovery.data?.open : undefined;
                 const link = (
                   <Link
                     href={item.href}

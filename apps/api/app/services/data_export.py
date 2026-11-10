@@ -23,6 +23,7 @@ from app.core.security import now
 from app.models import (
     AuditLog,
     AuthSession,
+    AutomationRule,
     Campaign,
     CampaignTemplate,
     Customer,
@@ -36,11 +37,13 @@ from app.models import (
     OrganizationMember,
     Payment,
     QRCode,
+    RecoveryCase,
     Review,
     ReviewReply,
     ReviewRequest,
     Subscription,
     User,
+    VisitEvent,
 )
 
 # Columns that must never leave the system.
@@ -97,6 +100,9 @@ async def organization_export(db: AsyncSession, org: Organization) -> bytes:
         "subscription": list((await db.scalars(select(Subscription).where(Subscription.organization_id == oid))).all()),
         "payments": list((await db.scalars(select(Payment).where(Payment.organization_id == oid))).all()),
         "invoices": list((await db.scalars(select(Invoice).where(Invoice.organization_id == oid))).all()),
+        "visit_events": list((await db.scalars(select(VisitEvent).where(VisitEvent.organization_id == oid))).all()),
+        "automation_rules": list((await db.scalars(select(AutomationRule).where(AutomationRule.organization_id == oid))).all()),
+        "recovery_cases": list((await db.scalars(select(RecoveryCase).where(RecoveryCase.organization_id == oid))).all()),
         "audit_log": list((await db.scalars(select(AuditLog).where(AuditLog.organization_id == oid).order_by(AuditLog.created_at))).all()),
     }
     buf = io.BytesIO()

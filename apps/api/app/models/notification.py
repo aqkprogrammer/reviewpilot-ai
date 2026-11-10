@@ -20,6 +20,10 @@ NOTIFICATION_TYPES = (
     "team.invitation",
     "ai.usage_limit",
     "system.announcement",
+    "recovery.case_opened",
+    "recovery.sla_breached",
+    "automation.failed",
+    "digest.weekly",
 )
 
 

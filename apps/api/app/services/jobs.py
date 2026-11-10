@@ -60,7 +60,7 @@ async def enqueue(name: str, *, organization_id: uuid.UUID | None = None, defer_
     async def _run() -> None:
         if defer_seconds:
             await asyncio.sleep(min(defer_seconds, 5))
-        from app.worker.tasks import TASKS
+        from app.worker.settings import TASKS
 
         await run_tracked(TASKS[name], {"inline": True}, str(job_id), **kwargs)
 

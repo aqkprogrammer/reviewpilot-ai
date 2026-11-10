@@ -22,6 +22,10 @@ TYPE_PERMISSION = {
     "billing.payment_succeeded": Perm.BILLING_MANAGE,
     "billing.payment_failed": Perm.BILLING_MANAGE,
     "ai.usage_limit": Perm.AI_USE,
+    "recovery.case_opened": Perm.REVIEWS_REPLY,
+    "recovery.sla_breached": Perm.REVIEWS_REPLY,
+    "automation.failed": Perm.CAMPAIGNS_MANAGE,
+    "digest.weekly": Perm.ANALYTICS_READ,
 }
 
 

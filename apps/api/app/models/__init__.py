@@ -6,6 +6,7 @@ from app.models.billing import Invoice, Payment, Subscription, SubscriptionPlan
 from app.models.campaign import Campaign, CampaignTemplate, MessageDelivery, ReviewRequest
 from app.models.customer import Customer, CustomerConsent
 from app.models.feedback import FeedbackSubmission
+from app.models.growth import ApiKey, AutomationRule, RecoveryCase, VisitEvent
 from app.models.integration import GoogleAccount, GoogleConnection, IntegrationCredential
 from app.models.notification import Notification, NotificationPreference
 from app.models.organization import Invitation, Location, LocationMember, Organization, OrganizationMember
@@ -16,6 +17,7 @@ from app.models.support import Announcement, ContactMessage, SupportMessage, Sup
 from app.models.user import AuthSession, AuthToken, OAuthIdentity, User
 
 __all__ = [
+    "ApiKey", "AutomationRule", "RecoveryCase", "VisitEvent",
     "AIGeneration", "AIInsight", "AIUsage", "Announcement", "AuditLog", "AuthSession", "AuthToken",
     "BackgroundJob", "Base", "Campaign", "CampaignTemplate", "ContactMessage", "Customer", "CustomerConsent",
     "ErrorEvent", "FeatureFlag", "FeedbackSubmission", "GoogleAccount", "GoogleConnection",
