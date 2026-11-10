@@ -8,7 +8,7 @@ import { ArrowLeft, Ban, Bot, CreditCard, Lock, MapPin, MessageSquareText, QrCod
 import { Button } from "@/components/ui/button";
 import { StatusDot } from "@/components/ui/tech";
 import { errorMessage } from "@/lib/api";
-import { cn, formatNumber, titleCase } from "@/lib/utils";
+import { cn, titleCase } from "@/lib/utils";
 import { ReasonDialog } from "@/components/admin/reason-dialog";
 import { DataTable, Row, Td, Th } from "@/components/admin/table";
 import { CopyId, DemoTag, EmptyLine, KeyValue, Kpi, KpiGrid, Monogram, Notice, Panel, QueryState, StatusPill, adminPost, money, relTime, shortDate, stamp, useAdmin } from "@/components/admin/ui";

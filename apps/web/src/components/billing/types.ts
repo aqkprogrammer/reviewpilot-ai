@@ -8,6 +8,7 @@ export interface CurrentSub {
     id: string; status: string; interval: string; provider: string | null; trial_ends_at: string | null; current_period_start: string | null;
     current_period_end: string | null; grace_period_ends_at: string | null; cancel_at_period_end: boolean; canceled_at: string | null;
     pending_plan: Plan | null; pending_checkout: { provider: string; reference: string; plan_code: string; interval: string } | null;
+    scheduled_change: { plan: Plan; interval: string; effective_at: string | null } | null;
   };
   plan: Plan | null;
   usage: { locations: number; team_members: number; ai_requests: number };

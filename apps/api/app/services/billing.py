@@ -15,7 +15,7 @@ from app.core.security import now
 from app.models import Invoice, Organization, Payment, Subscription, SubscriptionPlan, WebhookEvent
 from app.models.enums import PaymentStatus, SubscriptionStatus
 from app.providers.payments import NormalizedEvent
-from app.services import audit
+from app.services import audit, gst
 from app.services.notify import notify_org
 
 log = logging.getLogger("reviewpilot.billing")
@@ -70,6 +70,13 @@ async def apply_event(db: AsyncSession, evt: NormalizedEvent) -> str:
         log.warning("Webhook %s/%s: subscription not found", evt.provider, evt.event_id)
         return "subscription_not_found"
     org = await db.get(Organization, sub.organization_id)
+    if evt.provider_plan_ref:
+        # Provider-side plan ids win over metadata (Razorpay keeps old notes after a plan change).
+        for candidate in (await db.scalars(select(SubscriptionPlan))).all():
+            refs = candidate.provider_refs or {}
+            for interval in ("monthly", "yearly"):
+                if refs.get(f"{evt.provider}_{interval}") == evt.provider_plan_ref:
+                    evt.plan_code, evt.interval = candidate.code, interval
     plan = await db.scalar(select(SubscriptionPlan).where(SubscriptionPlan.code == evt.plan_code)) if evt.plan_code else None
 
     if evt.type == "subscription.activated":
@@ -99,15 +106,31 @@ async def apply_event(db: AsyncSession, evt: NormalizedEvent) -> str:
             )
             db.add(pay)
             await db.flush()
-            tax = round((evt.amount_minor or 0) * 18 / 118)  # GST-inclusive pricing (18%)
+            billing = ((org.settings or {}).get("billing") or {}) if org else {}
+            split = gst.tax_split(evt.amount_minor or 0, billing.get("state_code"))
             db.add(Invoice(
-                organization_id=sub.organization_id, payment_id=pay.id, number=await _next_invoice_number(db), amount_minor=evt.amount_minor or 0, tax_minor=tax,
+                organization_id=sub.organization_id, payment_id=pay.id, number=await _next_invoice_number(db), amount_minor=evt.amount_minor or 0, tax_minor=split["tax_minor"],
                 currency=evt.currency or "INR", status="paid", period_start=evt.period_start, period_end=evt.period_end,
-                line_items=[{"description": f"ReviewPilot AI — {evt.plan_code or 'subscription'} ({evt.interval or sub.interval})", "amount_minor": (evt.amount_minor or 0) - tax}],
-                billing_details={"name": org.name if org else "", "email": org.email if org else "", "country": org.country if org else ""},
+                line_items=[{
+                    "description": f"ReviewPilot AI — {evt.plan_code or 'subscription'} ({evt.interval or sub.interval})", "amount_minor": split["taxable_minor"],
+                    "sac": settings.invoice_sac_code, "taxes": split["lines"],
+                }],
+                billing_details={
+                    # Snapshot at issue time: later edits never alter an issued invoice.
+                    "name": billing.get("legal_name") or (org.name if org else ""), "email": billing.get("email") or (org.email if org else ""),
+                    "gstin": billing.get("gstin"), "address": ", ".join(p for p in [billing.get("address_line"), billing.get("city"), billing.get("postal_code")] if p) or None,
+                    "state": gst.STATES.get(billing.get("state_code") or ""), "state_code": billing.get("state_code"), "country": org.country if org else "",
+                    "place_of_supply": split["place_of_supply"],
+                    "seller": {"name": settings.company_legal_name, "gstin": settings.company_gstin, "address": settings.company_address, "state_code": settings.company_state_code},
+                },
             ))
         if plan:
             sub.plan_id = plan.id
+            if sub.pending_plan_id == plan.id:
+                sub.pending_plan_id = None  # scheduled change took effect at renewal
+                sub.pending_interval = None
+        if evt.interval:
+            sub.interval = evt.interval
         sub.status = SubscriptionStatus.ACTIVE
         sub.provider = evt.provider
         sub.provider_subscription_id = evt.provider_subscription_id or sub.provider_subscription_id
@@ -125,7 +148,9 @@ async def apply_event(db: AsyncSession, evt: NormalizedEvent) -> str:
         if not await db.scalar(select(Payment).where(Payment.provider == evt.provider, Payment.provider_payment_id == pid)):
             db.add(Payment(organization_id=sub.organization_id, subscription_id=sub.id, provider=evt.provider, provider_payment_id=pid, amount_minor=evt.amount_minor or 0, currency=evt.currency or "INR", status=PaymentStatus.FAILED, failure_reason=evt.failure_reason, plan_code=evt.plan_code, raw=_safe(evt.raw)))
         current_plan = await db.get(SubscriptionPlan, sub.plan_id)
-        is_plan_change = bool(evt.plan_code and current_plan and evt.plan_code != current_plan.code)
+        pending_plan = await db.get(SubscriptionPlan, sub.pending_plan_id) if sub.pending_plan_id else None
+        is_scheduled_renewal = bool(pending_plan and evt.plan_code == pending_plan.code)
+        is_plan_change = bool(evt.plan_code and current_plan and evt.plan_code != current_plan.code and not is_scheduled_renewal)
         # Only a failed charge for the plan the customer is already on (a renewal) puts the
         # subscription at risk. A declined upgrade/downgrade checkout, or a declined first
         # checkout during a trial, leaves the current subscription untouched.
@@ -163,4 +188,36 @@ async def run_maintenance(db: AsyncSession) -> dict:
     for s in lapsed:
         s.status = SubscriptionStatus.EXPIRED
     await db.commit()
-    return {"expired_trials": len(expired_trials), "lapsed_grace": len(lapsed)}
+    applied = await _apply_due_mock_changes(db) if settings.demo_mode else 0
+    return {"expired_trials": len(expired_trials), "lapsed_grace": len(lapsed), "mock_changes_applied": applied}
+
+
+async def _apply_due_mock_changes(db: AsyncSession) -> int:
+    """Demo mode only: the mock provider has no real renewal, so emit a signed renewal event
+    for scheduled changes whose period has ended — processed through the normal pipeline."""
+    import json
+
+    from app.providers.payments import MockPaymentProvider
+
+    due = (
+        await db.scalars(
+            select(Subscription).where(Subscription.provider == "mock", Subscription.pending_plan_id.is_not(None), Subscription.current_period_end < now())
+        )
+    ).all()
+    provider = MockPaymentProvider()
+    for sub in due:
+        plan = await db.get(SubscriptionPlan, sub.pending_plan_id)
+        interval = sub.pending_interval or sub.interval
+        body = json.dumps({
+            "id": f"evt_mock_renewal_{uuid.uuid4().hex[:16]}", "type": "payment.succeeded", "organization_id": str(sub.organization_id),
+            "plan_code": plan.code, "interval": interval, "subscription_id": sub.provider_subscription_id, "payment_id": f"pay_mock_{uuid.uuid4().hex[:12]}",
+            "amount_minor": plan.price_yearly_minor if interval == "yearly" else plan.price_monthly_minor, "currency": plan.currency,
+            "period_start": now().isoformat(), "period_end": (now() + timedelta(days=365 if interval == "yearly" else 30)).isoformat(),
+        }).encode()
+        evt = provider.parse_webhook(body, {"x-mock-signature": provider.sign(body)})
+        row, is_new = await record_event(db, evt)
+        if is_new:
+            await apply_event(db, evt)
+            row.processed_at = now()
+    await db.commit()
+    return len(due)

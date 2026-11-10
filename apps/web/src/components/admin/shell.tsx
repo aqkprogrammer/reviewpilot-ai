@@ -65,12 +65,11 @@ function SidebarNav({ collapsed, onNavigate, layoutId }: { collapsed?: boolean; 
   const health = useHealthLite();
   const open = tickets.data?.counts?.open ?? 0;
   const tone = healthTone(health.data);
-  let n = 0;
   return (
     <nav className="flex flex-col gap-5" aria-label="Console sections">
-      {ADMIN_NAV.map((g) => {
-        const first = n + 1;
-        n += g.items.length;
+      {ADMIN_NAV.map((g, gi) => {
+        const first = ADMIN_NAV.slice(0, gi).reduce((sum, prev) => sum + prev.items.length, 0) + 1;
+        const n = first + g.items.length - 1;
         return (
           <div key={g.group}>
             {collapsed ? (

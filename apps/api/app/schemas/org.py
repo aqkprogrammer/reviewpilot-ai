@@ -30,6 +30,8 @@ class OrganizationOut(ORM):
     status: str
     is_demo: bool
     auto_publish_replies: bool
+    auto_publish_min_rating: int = 4
+    white_label: dict = {}
     onboarding_step: int
     onboarding_data: dict
     onboarding_completed_at: datetime | None
@@ -50,6 +52,7 @@ class OrganizationUpdate(BaseModel):
     brand_tone: str | None = None
     default_language: str | None = None
     auto_publish_replies: bool | None = None
+    auto_publish_min_rating: int | None = Field(None, ge=3, le=5)
 
     @field_validator("brand_color")
     @classmethod

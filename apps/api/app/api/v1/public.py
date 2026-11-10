@@ -20,6 +20,7 @@ from app.models import ContactMessage, Customer, FeedbackSubmission, Location, O
 from app.models.enums import ConsentStatus, ConsentType, OrgStatus, RequestStatus
 from app.providers.ai import heuristic_sentiment
 from app.schemas.common import Message
+from app.services import white_label
 from app.services.consent import record_consent
 from app.services.locations import review_url
 from app.services.notify import notify_org
@@ -61,6 +62,8 @@ class PublicLocation(BaseModel):
     default_language: str
     content: dict[str, dict[str, str]]
     is_demo: bool
+    show_attribution: bool = True
+    footer_text: str | None = None
 
 
 async def _location(db, slug: str) -> tuple[Location, Organization]:
@@ -93,6 +96,7 @@ async def get_public_location(slug: str, db: DB, t: str | None = Query(None, max
             req.status = RequestStatus.CLICKED
         req.next_reminder_at = None  # they engaged — no reminder
         await db.commit()
+    wl = await white_label.effective(db, org)
     custom = loc.feedback_page or {}
     copy = {lang: {**DEFAULT_COPY[lang], **(custom.get("copy", {}).get(lang, {}))} for lang in DEFAULT_COPY}
     address = ", ".join(p for p in [loc.address_line, loc.city, loc.state] if p) or None
@@ -100,6 +104,7 @@ async def get_public_location(slug: str, db: DB, t: str | None = Query(None, max
         business_name=org.name, location_name=loc.name, slug=loc.slug, logo_url=org.logo_url, brand_color=org.brand_color, address=address,
         phone=loc.phone or org.phone, website=org.website, industry=org.industry, has_google_link=review_url(loc) is not None,
         languages=["en", "hi"], default_language=org.default_language if org.default_language in ("en", "hi") else "en", content=copy, is_demo=org.is_demo,
+        show_attribution=not wl["hide_attribution"], footer_text=wl["footer_text"],
     )
 
 

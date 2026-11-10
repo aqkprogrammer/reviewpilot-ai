@@ -2,7 +2,8 @@
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { KeyRound, Laptop, MailCheck, Monitor, Smartphone } from "lucide-react";
+import { Download, KeyRound, Laptop, MailCheck, Monitor, Smartphone, UserX } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,8 +12,8 @@ import { StatusDot } from "@/components/ui/tech";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { InlineAlert, Skeleton } from "@/components/ui/states";
-import { api, errorMessage } from "@/lib/api";
-import { meQueryKey, useOrg } from "@/lib/session";
+import { api, downloadFile, errorMessage } from "@/lib/api";
+import { logout, meQueryKey, useOrg } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
 interface Session { id: string; created_at: string; last_used_at: string | null; expires_at: string; ip_address: string | null; user_agent: string | null; current: boolean }
@@ -109,8 +110,77 @@ export function ProfileTab() {
               );
             })}
           </ul>
-        )}
+                )}
       </Panel>
+
+      <PrivacyPanel />
     </div>
+  );
+}
+
+interface DeletionCheck { blocked_by: string[]; organizations_scheduled: string[]; requires_password: boolean }
+
+function PrivacyPanel() {
+  const [busy, setBusy] = React.useState(false);
+  const [open, setOpen] = React.useState(false);
+  const [confirm, setConfirm] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const check = useQuery({ queryKey: ["deletion-check"], queryFn: () => api.get<DeletionCheck>("/auth/me/deletion-check", undefined, { orgId: null }), enabled: open });
+  const del = useMutation({
+    mutationFn: () => api.delete("/auth/me", { body: { confirm, password: password || null }, orgId: null }),
+    onSuccess: async () => { toast.success("Your account has been deleted"); await logout(); },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
+  const exportMine = async () => {
+    setBusy(true);
+    try { await downloadFile("/auth/me/export", undefined, "reviewpilot-my-data.json"); toast.success("Your data has been downloaded"); }
+    catch (e) { toast.error(errorMessage(e)); }
+    finally { setBusy(false); }
+  };
+  const c = check.data;
+  const blocked = !!c?.blocked_by.length;
+  return (
+    <Panel index="04" label="Privacy" title="Your data" description="Download a copy of what we store about your account, or delete it permanently.">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+        <p className="text-[13px] text-muted-foreground">Profile, memberships, sessions, notifications and your activity log — as JSON.</p>
+        <Button variant="outline" size="sm" loading={busy} onClick={exportMine}><Download /> Download my data</Button>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-4">
+        <div>
+          <p className="text-[13px] font-medium text-danger-foreground">Delete account</p>
+          <p className="mt-0.5 text-[12.5px] text-muted-foreground">Your name, email and sign-in methods are erased. Activity in shared organizations stays, attributed to “Deleted user”.</p>
+        </div>
+        <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setConfirm(""); setPassword(""); } }}>
+          <DialogTrigger asChild><Button variant="danger-soft" size="sm"><UserX /> Delete account</Button></DialogTrigger>
+          <DialogContent size="sm">
+            <DialogHeader>
+              <DialogTitle>Delete your account?</DialogTitle>
+              <DialogDescription>This can&apos;t be undone.</DialogDescription>
+            </DialogHeader>
+            {check.isLoading ? <Skeleton className="h-20" /> : blocked ? (
+              <InlineAlert variant="danger" icon={UserX} title="Transfer ownership first">
+                You&apos;re the only owner of {c!.blocked_by.join(", ")}. Make another member an owner in Team settings, then try again.
+              </InlineAlert>
+            ) : (
+              <form id="delete-account" className="space-y-4" onSubmit={(e) => { e.preventDefault(); del.mutate(); }}>
+                {!!c?.organizations_scheduled.length && (
+                  <InlineAlert variant="warning" icon={UserX} title="These organizations will be deleted too">
+                    You&apos;re their only member: {c.organizations_scheduled.join(", ")}. Support can restore them for 30 days.
+                  </InlineAlert>
+                )}
+                {c?.requires_password && (
+                  <FormField label="Password" htmlFor="del-pw"><Input id="del-pw" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></FormField>
+                )}
+                <FormField label="Type DELETE to confirm" htmlFor="del-confirm"><Input id="del-confirm" className="font-mono" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="off" /></FormField>
+              </form>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+              {!blocked && <Button form="delete-account" type="submit" variant="danger" disabled={confirm !== "DELETE" || (c?.requires_password && !password) || check.isLoading} loading={del.isPending}>Delete account</Button>}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </Panel>
   );
 }

@@ -40,6 +40,14 @@ class Organization(UUIDPk, Timestamps, SoftDelete, Base):
     white_label: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
     settings: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
 
+    @property
+    def auto_publish_min_rating(self) -> int:
+        """Minimum star rating eligible for owner-authorised auto-publish (3–5, default 4)."""
+        try:
+            return max(3, min(5, int((self.settings or {}).get("auto_publish_min_rating", 4))))
+        except (TypeError, ValueError):
+            return 4
+
     members: Mapped[list["OrganizationMember"]] = relationship(back_populates="organization", lazy="raise")
     locations: Mapped[list["Location"]] = relationship(back_populates="organization", lazy="raise")
 

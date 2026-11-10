@@ -273,6 +273,39 @@ async def reactivate_org(org_id: uuid.UUID, data: ReasonIn, request: Request, db
     return {"status": org.status}
 
 
+@router.get("/organizations-pending-deletion")
+async def pending_deletion(db: DB):
+    """Organizations deleted by their owners and still inside the 30-day restore window."""
+    from app.services.retention import GRACE_DAYS
+
+    rows = (await db.scalars(select(Organization).where(Organization.deleted_at.is_not(None)).order_by(Organization.deleted_at.desc()).limit(200))).all()
+    out = []
+    for o in rows:
+        purged = bool((o.settings or {}).get("purged_at"))
+        out.append({
+            "id": str(o.id), "name": o.name, "slug": o.slug, "deleted_at": _iso(o.deleted_at), "purged": purged,
+            "purge_after": _iso(o.deleted_at + timedelta(days=GRACE_DAYS)) if o.deleted_at else None,
+        })
+    return out
+
+
+@router.post("/organizations/{org_id}/restore")
+async def restore_org(org_id: uuid.UUID, data: ReasonIn, request: Request, db: DB, admin: SuperAdmin):
+    """Undo an owner's deletion while the organization is inside the grace window."""
+    org = await db.get(Organization, org_id)
+    if org is None or org.deleted_at is None:
+        raise NotFound("No deleted organization with that id")
+    if (org.settings or {}).get("purged_at"):
+        raise AppError("This organization's data has already been purged and cannot be restored.", code="already_purged", status_code=409)
+    owners = await db.scalar(select(func.count()).select_from(OrganizationMember).where(OrganizationMember.organization_id == org.id, OrganizationMember.role == "owner"))
+    if not owners:
+        raise AppError("No owner remains for this organization; it can't be restored.", code="no_owner", status_code=409)
+    org.deleted_at = None
+    await audit.record(db, "admin.organization_restored", actor=admin, organization_id=org.id, target_type="organization", target_id=org.id, request=request, meta={"reason": data.reason})
+    await db.commit()
+    return {"restored": True}
+
+
 # ================================================================== users
 
 def _user_row(u: User) -> dict:

@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start --port 3000",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
     "test": "vitest run",
     "test:e2e": "playwright test"
   },
@@ -42,6 +43,8 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.2.1",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.4.5",
     "jsdom": "^31.0.0",
     "tailwindcss": "^4.3.5",
     "typescript": "^5.9.3",

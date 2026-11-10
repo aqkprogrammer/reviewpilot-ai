@@ -107,3 +107,15 @@ uv run python -m app.cli seed-demo                        # sample data (dev onl
 | `webhook_events` | Verified inbound webhooks; unique (`provider`, `event_id`) for idempotency |
 | `background_jobs` | Job status, attempts, errors, runner (`arq`/`inline`) |
 | `error_events` | Recent unhandled exceptions for System Health |
+
+## Data retention & portability
+
+- **Organization deletion** is a soft delete with a 30-day restore window (Super Admin →
+  `POST /admin/organizations/{id}/restore`). The daily `purge_deleted_organizations` worker job then erases
+  all customer and operational data and scrubs the organization row into a tombstone. **Payments, invoices and
+  the audit log are retained** as statutory records (the audit-log trigger stays strictly append-only).
+- **Account deletion** (`DELETE /auth/me`) anonymises the user in place (name, email, phone, avatar, password,
+  sign-in identities, notifications removed; sessions revoked). It is refused while the user is the only owner
+  of an organization that has other members; solo organizations are scheduled for deletion with the account.
+- **Exports:** `GET /organizations/current/export` (owner, ZIP of CSVs + manifest, secrets excluded) and
+  `GET /auth/me/export` (personal JSON).

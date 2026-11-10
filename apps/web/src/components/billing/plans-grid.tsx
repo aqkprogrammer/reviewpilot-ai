@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 import Link from "next/link";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check } from "lucide-react";
 import { toast } from "sonner";
 import { SlideToggle } from "@/components/console/kit";
@@ -25,7 +25,19 @@ export function PlansGrid({ plans, current, canManage }: { plans: Plan[]; curren
     },
     onError: (e) => toast.error(errorMessage(e)),
   });
+  const qc = useQueryClient();
+  const schedule = useMutation({
+    mutationFn: (code: string) => api.post<CurrentSub>("/subscriptions/schedule-change", { plan_code: code }),
+    onSuccess: (r) => {
+      toast.success(`Scheduled — switches to ${r.subscription?.scheduled_change?.plan.name} at the end of this billing period.`);
+      qc.invalidateQueries({ queryKey: ["subscription"] });
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
   const currentRank = plans.findIndex((p) => p.code === current.plan?.code);
+  // Paid, active subscriptions downgrade at period end (provider-scheduled); everything else goes through checkout.
+  const canSchedule = current.subscription?.status === "active" && !!current.subscription.provider && current.subscription.interval === interval;
+  const scheduledCode = current.subscription?.scheduled_change?.plan.code;
   return (
     <div>
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -50,7 +62,10 @@ export function PlansGrid({ plans, current, canManage }: { plans: Plan[]; curren
         {plans.map((p, idx) => {
           const isCurrent = p.code === current.plan?.code && !!active && current.subscription?.interval === interval;
           const price = interval === "yearly" ? p.price_yearly_minor / 12 : p.price_monthly_minor;
-          const label = p.is_custom_pricing ? "Contact sales" : isCurrent ? "Current plan" : currentRank >= 0 && idx < currentRank && active ? `Downgrade to ${p.name}` : `Choose ${p.name}`;
+          const isDowngrade = currentRank >= 0 && idx < currentRank && !!active;
+          const scheduled = scheduledCode === p.code;
+          const label = p.is_custom_pricing ? "Contact sales" : isCurrent ? "Current plan" : scheduled ? "Scheduled" : isDowngrade && canSchedule ? "Switch at period end" : isDowngrade ? `Downgrade to ${p.name}` : `Choose ${p.name}`;
+          const onAction = () => (isDowngrade && canSchedule ? schedule.mutate(p.code) : checkout.mutate(p.code));
           return (
             <Reveal key={p.code} delay={idx * 0.04} className="h-full min-w-0">
               <Card className={cn("relative flex h-full flex-col overflow-hidden p-5 transition-colors", p.is_popular ? "border-[color-mix(in_oklab,var(--primary)_45%,var(--border-strong))] shadow-[0_0_0_1px_color-mix(in_oklab,var(--primary)_25%,transparent),0_20px_50px_-30px_var(--primary)]" : "card-hover", isCurrent && "border-[color-mix(in_oklab,var(--success)_40%,var(--border-strong))]")}>
@@ -89,7 +104,7 @@ export function PlansGrid({ plans, current, canManage }: { plans: Plan[]; curren
                   {p.is_custom_pricing ? (
                     <Button variant="outline" className="w-full" asChild><Link href="/contact?topic=enterprise">Contact sales</Link></Button>
                   ) : (
-                    <Button className="w-full" variant={p.is_popular && !isCurrent ? "primary" : "outline"} disabled={!canManage || isCurrent} loading={checkout.isPending && checkout.variables === p.code} onClick={() => checkout.mutate(p.code)}>
+                    <Button className="w-full" variant={p.is_popular && !isCurrent ? "primary" : "outline"} disabled={!canManage || isCurrent || scheduled} loading={(checkout.isPending && checkout.variables === p.code) || (schedule.isPending && schedule.variables === p.code)} onClick={onAction}>
                       {label}
                     </Button>
                   )}

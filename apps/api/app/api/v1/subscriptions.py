@@ -7,7 +7,7 @@ from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from reportlab.lib.colors import HexColor
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -21,7 +21,7 @@ from app.core.security import now
 from app.models import AIUsage, Invoice, Location, OrganizationMember, Payment, SubscriptionPlan
 from app.models.enums import SubscriptionStatus
 from app.providers.payments import MockPaymentProvider, get_provider, provider_by_name
-from app.services import audit
+from app.services import audit, gst
 from app.services.billing import apply_event, record_event
 from app.services.organizations import get_subscription_with_plan
 
@@ -59,6 +59,7 @@ async def current(ctx: Org, db: DB):
             "current_period_start": sub.current_period_start, "current_period_end": sub.current_period_end, "grace_period_ends_at": sub.grace_period_ends_at,
             "cancel_at_period_end": sub.cancel_at_period_end, "canceled_at": sub.canceled_at, "pending_plan": plan_out(pending_plan) if pending_plan else None,
             "pending_checkout": sub.pending_checkout or None,
+            "scheduled_change": {"plan": plan_out(pending_plan), "interval": sub.pending_interval or sub.interval, "effective_at": sub.current_period_end} if pending_plan else None,
         },
         "plan": plan_out(plan) if plan else None,
         "usage": {"locations": locations or 0, "team_members": members or 0, "ai_requests": ai or 0},
@@ -87,8 +88,8 @@ async def checkout(data: CheckoutIn, request: Request, db: DB, ctx: OrgContext =
     provider = get_provider(data.provider)
     session = await provider.create_checkout(org_id=str(ctx.org_id), org_name=ctx.organization.name, email=ctx.user.email, plan=plan, interval=data.interval)
     if sub is not None:
-        sub.pending_plan_id = plan.id
-        sub.pending_interval = data.interval
+        # Checkout intent lives only in pending_checkout; pending_plan_id is reserved for
+        # scheduled (period-end) downgrades so an abandoned checkout can never be applied.
         sub.pending_checkout = {"provider": session.provider, "reference": session.reference, "created_at": now().isoformat(), "plan_code": plan.code, "interval": data.interval}
     await audit.record(db, "billing.checkout_started", actor=ctx.user, organization_id=ctx.org_id, request=request, meta={"plan": plan.code, "interval": data.interval, "provider": session.provider})
     await db.commit()  # also persists any provider plan ids created on the fly
@@ -117,6 +118,92 @@ async def cancel(request: Request, db: DB, ctx: OrgContext = Billing):
     return await current(ctx, db)
 
 
+class ScheduleChangeIn(BaseModel):
+    plan_code: str
+
+
+def _monthly_equiv(plan: SubscriptionPlan) -> float:
+    return plan.price_monthly_minor
+
+
+@router.post("/schedule-change")
+async def schedule_change(data: ScheduleChangeIn, request: Request, db: DB, ctx: OrgContext = Billing):
+    """Downgrade at the end of the current billing period (upgrades go through checkout)."""
+    sub, current_plan = await get_subscription_with_plan(db, ctx.org_id)
+    if sub is None or current_plan is None or sub.status != SubscriptionStatus.ACTIVE or not (sub.provider and sub.provider_subscription_id):
+        raise AppError("Scheduled changes need an active paid subscription. Choose a plan through checkout instead.", code="no_active_subscription")
+    target = await db.scalar(select(SubscriptionPlan).where(SubscriptionPlan.code == data.plan_code, SubscriptionPlan.is_active.is_(True)))
+    if target is None or target.is_custom_pricing:
+        raise NotFound("Plan not found")
+    if target.id == current_plan.id:
+        raise AppError("You're already on this plan.", code="same_plan")
+    if _monthly_equiv(target) >= _monthly_equiv(current_plan):
+        raise AppError("That's an upgrade — upgrades take effect immediately through checkout.", code="use_checkout")
+    locations = await db.scalar(select(func.count()).select_from(Location).where(Location.organization_id == ctx.org_id, Location.deleted_at.is_(None))) or 0
+    members = await db.scalar(select(func.count()).select_from(OrganizationMember).where(OrganizationMember.organization_id == ctx.org_id)) or 0
+    problems = []
+    if locations > target.max_locations:
+        problems.append(f"{locations} locations (the {target.name} plan allows {target.max_locations})")
+    if members > target.max_team_members:
+        problems.append(f"{members} team members (the {target.name} plan allows {target.max_team_members})")
+    if problems:
+        raise AppError("Reduce usage before downgrading: " + "; ".join(problems) + ".", code="downgrade_blocked", details={"problems": problems})
+    await provider_by_name(sub.provider).schedule_change(sub.provider_subscription_id, plan=target, interval=sub.interval, org_id=str(ctx.org_id))
+    sub.pending_plan_id, sub.pending_interval = target.id, sub.interval
+    sub.pending_checkout = {}
+    await audit.record(db, "billing.downgrade_scheduled", actor=ctx.user, organization_id=ctx.org_id, request=request, meta={"from": current_plan.code, "to": target.code, "effective": sub.current_period_end.isoformat() if sub.current_period_end else None})
+    await db.commit()  # persists any provider plan ids created on the fly
+    return await current(ctx, db)
+
+
+@router.delete("/schedule-change")
+async def cancel_schedule_change(request: Request, db: DB, ctx: OrgContext = Billing):
+    sub, current_plan = await get_subscription_with_plan(db, ctx.org_id)
+    if sub is None or sub.pending_plan_id is None:
+        raise AppError("No scheduled change to cancel.", code="nothing_scheduled")
+    if sub.provider and sub.provider_subscription_id and current_plan:
+        await provider_by_name(sub.provider).cancel_scheduled_change(sub.provider_subscription_id, current_plan=current_plan, interval=sub.interval, org_id=str(ctx.org_id))
+    sub.pending_plan_id = sub.pending_interval = None
+    await audit.record(db, "billing.scheduled_change_canceled", actor=ctx.user, organization_id=ctx.org_id, request=request)
+    await db.commit()
+    return await current(ctx, db)
+
+
+class BillingDetailsIn(BaseModel):
+    legal_name: str = Field(min_length=2, max_length=200)
+    gstin: str | None = Field(None, max_length=15)
+    email: str | None = Field(None, max_length=320)
+    address_line: str | None = Field(None, max_length=300)
+    city: str | None = Field(None, max_length=120)
+    postal_code: str | None = Field(None, max_length=12)
+    state_code: str | None = Field(None, pattern=r"^\d{2}$")
+
+    @field_validator("gstin")
+    @classmethod
+    def _gstin(cls, v):
+        return gst.validate_gstin(v) if v and v.strip() else None
+
+
+@router.get("/billing-details")
+async def get_billing_details(ctx: OrgContext = Billing):
+    return {"details": (ctx.organization.settings or {}).get("billing") or {"legal_name": ctx.organization.name, "email": ctx.organization.email}, "states": gst.STATES, "seller_registered": bool(settings.company_gstin)}
+
+
+@router.put("/billing-details")
+async def put_billing_details(data: BillingDetailsIn, request: Request, db: DB, ctx: OrgContext = Billing):
+    details = data.model_dump()
+    if details["gstin"]:
+        if details["state_code"] and details["state_code"] != details["gstin"][:2]:
+            raise AppError("The state doesn't match the GSTIN (its first two digits are the state code).", code="gstin_state_mismatch")
+        details["state_code"] = details["gstin"][:2]
+    if details["state_code"] and details["state_code"] not in gst.STATES:
+        raise AppError("Unknown state code.", code="invalid_state")
+    ctx.organization.settings = {**(ctx.organization.settings or {}), "billing": details}
+    await audit.record(db, "billing.details_updated", actor=ctx.user, organization_id=ctx.org_id, request=request, meta={"gstin": bool(details["gstin"])})
+    await db.commit()
+    return {"details": details, "states": gst.STATES, "seller_registered": bool(settings.company_gstin)}
+
+
 @router.get("/payments")
 async def payments(db: DB, ctx: OrgContext = Billing):
     rows = (await db.scalars(select(Payment).where(Payment.organization_id == ctx.org_id).order_by(Payment.created_at.desc()).limit(100))).all()
@@ -134,44 +221,74 @@ async def invoice_pdf(invoice_id: uuid.UUID, db: DB, ctx: OrgContext = Billing):
     if inv is None or inv.organization_id != ctx.org_id:
         raise NotFound("Invoice not found")
     pay = await db.get(Payment, inv.payment_id) if inv.payment_id else None
+    bd = inv.billing_details or {}
+    seller = bd.get("seller") or {"name": settings.company_legal_name, "gstin": settings.company_gstin, "address": settings.company_address}
+    simulated = bool(pay and pay.provider == "mock")
+    money = lambda minor: f"{inv.currency} {minor / 100:,.2f}"  # noqa: E731
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
     w, h = A4
+    ink, muted, line = HexColor("#0b1218"), HexColor("#52616c"), HexColor("#dde5e9")
     c.setFillColor(HexColor("#0e9aa7"))
-    c.rect(0, h - 8, w, 8, stroke=0, fill=1)
-    c.setFillColor(HexColor("#0b1218"))
-    c.setFont("Helvetica-Bold", 22)
-    c.drawString(40, h - 64, "Tax Invoice" if not (pay and pay.provider == "mock") else "Invoice (SIMULATED — demo mode)")
-    c.setFont("Helvetica", 10)
-    c.drawString(40, h - 84, f"Invoice {inv.number}   ·   {inv.created_at:%d %b %Y}")
-    c.drawString(40, h - 120, "Billed to")
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(40, h - 136, inv.billing_details.get("name", ""))
-    c.setFont("Helvetica", 10)
-    c.drawString(40, h - 150, inv.billing_details.get("email", ""))
-    c.drawString(360, h - 120, "From")
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(360, h - 136, "ReviewPilot AI")
-    y = h - 200
-    c.setFont("Helvetica-Bold", 9)
+    c.rect(0, h - 6, w, 6, stroke=0, fill=1)
+    c.setFillColor(ink)
+    c.setFont("Helvetica-Bold", 20)
+    title = "Invoice (SIMULATED — demo mode)" if simulated else ("Tax Invoice" if seller.get("gstin") else "Invoice")
+    c.drawString(40, h - 58, title)
+    c.setFont("Helvetica", 9.5)
+    c.setFillColor(muted)
+    c.drawString(40, h - 76, f"No. {inv.number}   ·   Date {inv.created_at:%d %b %Y}" + (f"   ·   Period {inv.period_start:%d %b %Y} – {inv.period_end:%d %b %Y}" if inv.period_start and inv.period_end else ""))
+
+    def block(x: float, y: float, heading: str, lines: list[str]) -> None:
+        c.setFillColor(muted)
+        c.setFont("Helvetica-Bold", 8)
+        c.drawString(x, y, heading.upper())
+        c.setFillColor(ink)
+        for i, text in enumerate([t for t in lines if t]):
+            c.setFont("Helvetica-Bold" if i == 0 else "Helvetica", 10 if i == 0 else 9)
+            c.drawString(x, y - 15 - i * 13, text[:70])
+
+    block(40, h - 112, "Billed to", [bd.get("name", ""), bd.get("address"), bd.get("state") and f"{bd['state']} ({bd.get('state_code')})", bd.get("gstin") and f"GSTIN {bd['gstin']}", bd.get("email")])
+    block(320, h - 112, "Supplier", [seller.get("name") or "ReviewPilot AI", seller.get("address"), seller.get("gstin") and f"GSTIN {seller['gstin']}"])
+    y = h - 210
+    if bd.get("place_of_supply"):
+        c.setFont("Helvetica", 9)
+        c.setFillColor(muted)
+        c.drawString(40, y + 12, f"Place of supply: {bd['place_of_supply']}")
+    c.setStrokeColor(line)
+    c.line(40, y, w - 40, y)
+    y -= 16
+    c.setFillColor(muted)
+    c.setFont("Helvetica-Bold", 8)
     c.drawString(40, y, "DESCRIPTION")
-    c.drawRightString(w - 40, y, "AMOUNT")
+    c.drawString(360, y, "SAC")
+    c.drawRightString(w - 40, y, "TAXABLE VALUE")
+    c.setFillColor(ink)
     c.setFont("Helvetica", 10)
-    sym = "₹" if inv.currency == "INR" else inv.currency + " "
+    taxes: list[dict] = []
     for item in inv.line_items:
         y -= 20
-        c.drawString(40, y, item["description"])
-        c.drawRightString(w - 40, y, f"{inv.currency} {item['amount_minor'] / 100:,.2f}")
-    y -= 24
-    c.drawString(360, y, "GST (18%, included)")
-    c.drawRightString(w - 40, y, f"{inv.currency} {inv.tax_minor / 100:,.2f}")
-    y -= 20
+        c.drawString(40, y, item["description"][:60])
+        c.drawString(360, y, item.get("sac") or "—")
+        c.drawRightString(w - 40, y, money(item["amount_minor"]))
+        taxes.extend(item.get("taxes") or [])
+    if not taxes:  # invoices issued before the GST breakdown existed
+        taxes = [{"name": "GST 18% (included)", "amount_minor": inv.tax_minor}]
+    y -= 14
+    c.line(300, y, w - 40, y)
+    for t in taxes:
+        y -= 18
+        c.drawString(320, y, t["name"])
+        c.drawRightString(w - 40, y, money(t["amount_minor"]))
+    y -= 22
     c.setFont("Helvetica-Bold", 12)
-    c.drawString(360, y, "Total")
-    c.drawRightString(w - 40, y, f"{inv.currency} {inv.amount_minor / 100:,.2f}")
+    c.drawString(320, y, "Total (incl. GST)")
+    c.drawRightString(w - 40, y, money(inv.amount_minor))
     c.setFont("Helvetica", 8)
-    c.drawString(40, 40, f"Paid via {pay.provider if pay else '—'} · Reference {pay.provider_payment_id if pay else '—'}")
-    _ = sym
+    c.setFillColor(muted)
+    c.drawString(40, 52, f"Paid via {pay.provider if pay else '—'} · Reference {pay.provider_payment_id if pay else '—'}")
+    if not seller.get("gstin") and not simulated:
+        c.drawString(40, 40, "Supplier GSTIN not configured — this document is not a GST tax invoice.")
     c.showPage()
     c.save()
     return Response(buf.getvalue(), media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{inv.number}.pdf"'})

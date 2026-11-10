@@ -65,3 +65,24 @@ clearly labelled simulated payment page. Its buttons call `POST /subscriptions/m
 which builds an HMAC-signed mock event and pushes it through the **same** verification and state
 machine. Mock payments are stored with `provider="mock"` and invoices are marked simulated. The
 mock provider refuses to work outside demo mode.
+
+## Plan changes
+
+- **Upgrades** (and any change from a trial, expired or cancelled state) go through checkout and take
+  effect when the provider's signed webhook confirms payment.
+- **Downgrades on an active paid plan** are scheduled for the end of the current period
+  (`POST /subscriptions/schedule-change`): Razorpay `PATCH /subscriptions/{id}` with
+  `schedule_change_at=cycle_end`, Stripe price swap with `proration_behavior=none`. The organization must
+  already fit the smaller plan's location and seat limits. The plan switches when the renewal webhook arrives
+  (Razorpay renewals are matched by Razorpay plan id). `DELETE /subscriptions/schedule-change` reverts it.
+- A declined plan-change checkout never affects the current subscription; only a failed renewal starts the
+  grace period.
+
+## GST invoices
+
+Customers add their legal name, GSTIN (format + checksum validated; the state is derived from it) and billing
+address under Subscription → GST billing details. Each invoice snapshots these details at issue time.
+Tax is GST-inclusive at 18%: **CGST 9% + SGST 9%** when the buyer's state equals `COMPANY_STATE_CODE`,
+otherwise **IGST 18%**. Set `COMPANY_GSTIN`, `COMPANY_LEGAL_NAME`, `COMPANY_ADDRESS`, `COMPANY_STATE_CODE`
+and `INVOICE_SAC_CODE` (confirm with your tax adviser); until a supplier GSTIN is set, PDFs are titled
+"Invoice" and state they are not GST tax invoices.

@@ -242,7 +242,7 @@ export function PlanStep({ ctx }: { ctx: WizardCtx }) {
       await api.post("/onboarding/complete");
       const res = await api.post<{ checkout_url: string | null }>("/subscriptions/checkout", { plan_code: p.code, interval });
       try { sessionStorage.removeItem("rp_signup_plan"); } catch {}
-      if (res.checkout_url) window.location.href = res.checkout_url;
+      if (res.checkout_url) window.location.assign(res.checkout_url);
       else await ctx.next({ plan: { chosen: p.code, interval } });
     } catch (err) {
       toast.error(errorMessage(err));

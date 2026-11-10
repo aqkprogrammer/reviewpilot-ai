@@ -12,7 +12,7 @@ from app.core.db import SessionLocal
 from app.models import Campaign, GoogleConnection
 from app.models.enums import CampaignStatus, IntegrationStatus
 from app.services import ai as ai_svc
-from app.services import billing, campaigns, google_sync
+from app.services import auto_reply, billing, campaigns, google_sync, retention
 
 log = logging.getLogger("reviewpilot.worker")
 
@@ -93,10 +93,21 @@ async def subscription_maintenance(ctx) -> dict:
         return await billing.run_maintenance(db)
 
 
+async def purge_deleted_organizations(ctx) -> dict:
+    async with SessionLocal() as db:
+        return await retention.purge_deleted_organizations(db)
+
+
+async def auto_reply_review(ctx, review_id: str) -> dict:
+    async with SessionLocal() as db:
+        return await auto_reply.auto_reply(db, uuid.UUID(review_id))
+
+
 TASKS = {
     f.__name__: f
     for f in (
         process_campaign, start_scheduled_campaign, send_review_request, send_due_reminders, sync_google_reviews,
         sync_all_google, publish_review_reply, generate_ai_insights, subscription_maintenance,
+        purge_deleted_organizations, auto_reply_review,
     )
 }

@@ -46,6 +46,7 @@ class WorkerSettings:
         cron(_cron_job(TASKS["send_due_reminders"]), name="cron_send_due_reminders", minute={0, 15, 30, 45}),
         cron(_cron_job(TASKS["sync_all_google"]), name="cron_sync_all_google", minute={5}, hour=set(range(0, 24, 2))),
         cron(_cron_job(TASKS["subscription_maintenance"]), name="cron_subscription_maintenance", hour={1}, minute={30}),
+        cron(_cron_job(TASKS["purge_deleted_organizations"]), name="cron_purge_deleted_organizations", hour={2}, minute={15}),
     ]
     redis_settings = RedisSettings.from_dsn(settings.redis_url)
     on_startup = startup

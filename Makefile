@@ -1,7 +1,7 @@
 # ReviewPilot AI — common tasks. Requires uv, pnpm, Postgres and (optionally) Redis.
 API := apps/api
 
-.PHONY: install dev api web worker migrate migration seed seed-demo test test-api test-web e2e typecheck docker-up docker-down super-admin
+.PHONY: install dev api web worker migrate migration seed seed-demo test test-api test-web e2e typecheck lint docker-up docker-down super-admin
 
 install:
 	pnpm install
@@ -47,6 +47,10 @@ e2e:
 
 typecheck:
 	pnpm -r typecheck
+
+lint:
+	pnpm --filter @reviewpilot/web lint
+	cd $(API) && uv run ruff check app tests
 
 docker-up:
 	docker compose up --build

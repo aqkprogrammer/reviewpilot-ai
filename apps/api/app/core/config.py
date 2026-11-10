@@ -78,6 +78,12 @@ class Settings(BaseSettings):
     razorpay_key_secret: str | None = None
     razorpay_webhook_secret: str | None = None
     default_payment_provider: Literal["razorpay", "stripe", "mock"] = "razorpay"
+    # Seller details printed on invoices (a "Tax Invoice" needs a seller GSTIN).
+    company_legal_name: str = "ReviewPilot AI"
+    company_gstin: str | None = None
+    company_address: str | None = None
+    company_state_code: str | None = None  # 2-digit GST state code, e.g. "27" for Maharashtra
+    invoice_sac_code: str | None = None  # SAC for the service, per your tax adviser
     trial_days: int = 14
     grace_period_days: int = 7
 

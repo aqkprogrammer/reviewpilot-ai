@@ -83,7 +83,7 @@ export function GoogleCard() {
       {!s.platform_configured ? (
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <InlineAlert variant="info" icon={BookOpen} title="Google OAuth isn't configured on this server">
-            Until it is, paste each location's Google review link on the Locations page — the public feedback page uses it. Nothing shows as connected unless Google confirms it.
+            Until it is, paste each location&apos;s Google review link on the Locations page — the public feedback page uses it. Nothing shows as connected unless Google confirms it.
           </InlineAlert>
           <SetupSteps
             title="Server setup · administrator"

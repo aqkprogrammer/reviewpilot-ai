@@ -56,3 +56,9 @@ UPDATE/DELETE). Destructive actions require confirmation in the UI and a written
 ## Secrets
 Admin endpoints never return password hashes, OAuth tokens, provider secrets or card data;
 integration credentials are shown as configured/not configured or masked.
+
+## Restoring a deleted organization
+
+Owners can delete their organization from Settings. For 30 days it appears in
+`GET /admin/organizations-pending-deletion`; restore it with `POST /admin/organizations/{id}/restore` and an
+audit reason (it needs a remaining owner). After the purge job has run, restoration is refused.

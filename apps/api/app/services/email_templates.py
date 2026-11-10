@@ -49,13 +49,15 @@ def invitation(org_name: str, inviter: str, role: str, token: str) -> tuple[str,
     return f"Join {org_name} on ReviewPilot AI", _layout("You're invited", body), text
 
 
-def review_request(*, business: str, customer_name: str | None, message: str, link: str, unsubscribe_url: str, color: str) -> tuple[str, str]:
+def review_request(*, business: str, customer_name: str | None, message: str, link: str, unsubscribe_url: str, color: str, extra_footer: str | None = None) -> tuple[str, str]:
     greeting = f"Hi {_html.escape(customer_name)}," if customer_name else "Hello,"
     body = (
         f"<p>{greeting}</p><p>{_html.escape(message)}</p>{_button(link, 'Share your experience', color)}"
         "<p style='font-size:12px;color:#7d8b95'>Your honest feedback — positive or negative — helps us improve.</p>"
     )
     footer = f'You received this because you recently visited {_html.escape(business)}. <a href="{_html.escape(unsubscribe_url)}" style="color:#7d8b95">Unsubscribe</a>'
+    if extra_footer:
+        footer = f"{_html.escape(extra_footer)}<br>{footer}"
     text = f"{'Hi ' + customer_name + ',' if customer_name else 'Hello,'}\n\n{message}\n\n{link}\n\nUnsubscribe: {unsubscribe_url}"
     return _layout(f"How was your visit to {business}?", body, brand=business, color=color, footer=footer), text
 

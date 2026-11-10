@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.crypto import decrypt, encrypt
 from app.core.security import now
-from app.models import GoogleAccount, GoogleConnection, Location, Review, ReviewReply
+from app.models import GoogleAccount, GoogleConnection, Location, Organization, Review, ReviewReply
 from app.models.enums import IntegrationStatus, ReplyStatus, ResponseStatus, ReviewSource
 from app.providers import google_business as gbp
 from app.providers.ai import heuristic_sentiment
@@ -81,6 +81,7 @@ async def sync_connection(db: AsyncSession, connection_id: uuid.UUID) -> dict:
         client = gbp.GBPClient(await valid_access_token(db, conn))
         locations = (await db.scalars(select(Location).where(Location.organization_id == conn.organization_id, Location.google_location_name.is_not(None), Location.deleted_at.is_(None)))).all()
         created = updated = 0
+        new_review_ids: list[uuid.UUID] = []
         for loc in locations:
             account = await db.get(GoogleAccount, loc.google_account_id) if loc.google_account_id else None
             if account is None:
@@ -97,6 +98,8 @@ async def sync_connection(db: AsyncSession, connection_id: uuid.UUID) -> dict:
                     review = Review(organization_id=conn.organization_id, location_id=loc.id, source=ReviewSource.GOOGLE, platform="google", sentiment=sentiment, sentiment_score=score, topics=topics, history=[{"at": now().isoformat(), "event": "synced_from_google"}], **data)
                     review.response_status = ResponseStatus.RESPONDED if data["platform_reply"] else ResponseStatus.PENDING
                     db.add(review)
+                    await db.flush()
+                    new_review_ids.append(review.id)
                     created += 1
                     if review.response_status == ResponseStatus.PENDING:
                         await notify_org(db, conn.organization_id, "review.new", f"New {data['rating']}★ Google review — {loc.name}", (data["comment"] or "")[:160], link="/app/reviews", send_email=data["rating"] <= 2)
@@ -112,7 +115,13 @@ async def sync_connection(db: AsyncSession, connection_id: uuid.UUID) -> dict:
         conn.last_error = None
         conn.error_count = 0
         await db.commit()
-        return {"created": created, "updated": updated}
+        org = await db.get(Organization, conn.organization_id)
+        if org is not None and org.auto_publish_replies and new_review_ids:
+            from app.services.jobs import enqueue
+
+            for rid in new_review_ids:
+                await enqueue("auto_reply_review", organization_id=org.id, review_id=str(rid))
+        return {"created": created, "updated": updated, "auto_reply_queued": len(new_review_ids) if org and org.auto_publish_replies else 0}
     except gbp.GoogleAPIError as exc:
         conn.error_count += 1
         conn.last_error = str(exc)

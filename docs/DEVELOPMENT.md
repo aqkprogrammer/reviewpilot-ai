@@ -36,6 +36,9 @@ Or `docker compose up --build` for everything (Postgres, Redis, migrate+seed, AP
   `login`, `add_member` (invitation flow), `create_location`, `create_review`, `set_plan`,
   `outbox_token`. Override the DB with `TEST_DATABASE_URL`.
 - **Frontend:** `make test-web` (Vitest + Testing Library, jsdom).
+- **Lint:** `make lint` (ESLint flat config `apps/web/eslint.config.mjs` + `ruff check app tests`).
+- **CI:** `.github/workflows/ci.yml` runs ruff + pytest (Postgres 17 service, no Redis) and web
+  typecheck, ESLint, Vitest and `next build` on every push and pull request.
 - **E2E:** start API (`DEMO_MODE=true OAUTH_MOCK_ENABLED=true`) and web, seed demo data, then
   `make e2e`. Install browsers once with `pnpm --filter @reviewpilot/web exec playwright install chromium`.
 

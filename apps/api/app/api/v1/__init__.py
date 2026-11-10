@@ -18,11 +18,12 @@ from app.api.v1 import (
     reviews,
     subscriptions,
     team,
+    telemetry,
     webhooks,
 )
 
 api_router = APIRouter()
-for module in (admin, auth, organizations, onboarding, locations, team, reviews, customers, campaigns, qr_codes, analytics, ai, integrations, subscriptions, notifications, webhooks, dev):
+for module in (admin, auth, organizations, onboarding, locations, team, reviews, customers, campaigns, qr_codes, analytics, ai, integrations, subscriptions, notifications, webhooks, dev, telemetry):
     api_router.include_router(module.router)
 api_router.include_router(public.router)
 api_router.include_router(public.inbox)

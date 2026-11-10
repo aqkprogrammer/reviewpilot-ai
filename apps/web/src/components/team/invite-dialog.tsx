@@ -41,7 +41,7 @@ export function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="lg">
-        <DialogHeader><DialogTitle>Invite a team member</DialogTitle><DialogDescription>They'll get an email with a link valid for 7 days.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>Invite a team member</DialogTitle><DialogDescription>They&apos;ll get an email with a link valid for 7 days.</DialogDescription></DialogHeader>
         {limit ? <UpgradePrompt compact message={limit} /> : (
           <form onSubmit={submit} className="space-y-5" noValidate>
             <FormField label="Email address" htmlFor="inv-email" error={err?.includes("email") ? err : undefined}>

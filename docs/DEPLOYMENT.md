@@ -99,3 +99,22 @@ After the first deploy set `FRONTEND_URL`, `CORS_ORIGINS`, `BACKEND_URL` on the 
 `BACKEND_URL` at build time). `ENVIRONMENT=demo` requires generated secrets, a Fernet
 `ENCRYPTION_KEY` and `COOKIE_SECURE=true`; demo account passwords come from `SEED_PASSWORD_*` and are re-applied to the
 seeded accounts on every boot.
+
+## Monitoring
+
+Error capture is self-hosted by default — no third-party account is required:
+
+- **API / worker:** unhandled exceptions are stored in `error_events` (source `api` / `worker`).
+- **Web:** `src/app/error.tsx`, `src/app/global-error.tsx` and a global `error` /
+  `unhandledrejection` listener (`src/lib/report-error.ts`, deduped, max 5 reports per page load)
+  beacon to `POST /api/v1/public/client-errors` (unauthenticated, rate-limited to 20 per IP per
+  10 min, length-capped). Reports are stored as `error_events` with source `web`, the Next.js
+  `digest` as `request_id`, and the page path; the user agent is appended to the message — no other
+  personal data is kept.
+- All of these appear under **Super Admin → System health**.
+
+Optional Sentry (or self-hosted GlitchTip, which speaks the same protocol) for the API: set
+`SENTRY_DSN` on the API and worker. `SENTRY_TRACES_SAMPLE_RATE` (default `0`, errors only),
+`SENTRY_ENVIRONMENT` (default `ENVIRONMENT`) and `SENTRY_RELEASE` (default `RENDER_GIT_COMMIT` /
+`GIT_SHA`) are read in `app/core/monitoring.py`; nothing is initialised when `SENTRY_DSN` is empty.
+`send_default_pii` is off.

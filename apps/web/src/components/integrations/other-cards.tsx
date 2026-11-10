@@ -33,7 +33,7 @@ export function EmailCard() {
   const s = q.data!;
   return (
     <IntegrationCard icon={<Mail className="text-primary" />} name="Email (Resend)" code="Resend · Transactional" tagline="Branded review-request emails with unsubscribe links and delivery tracking." status={s.configured ? "connected" : s.delivery.mode === "simulated" ? "simulated" : "not_configured"}>
-      {!s.configured && <InlineAlert variant="info">RESEND_API_KEY isn't set on this server{s.delivery.mode === "simulated" ? " — emails are logged to the development outbox instead of being delivered." : "."}</InlineAlert>}
+      {!s.configured && <InlineAlert variant="info">RESEND_API_KEY isn&apos;t set on this server{s.delivery.mode === "simulated" ? " — emails are logged to the development outbox instead of being delivered." : "."}</InlineAlert>}
       <KVGroup><KV label="Sending address" value={s.from_address} mono /><KV label="Delivery mode" value={s.delivery.mode} mono /></KVGroup>
       <div className="grid gap-3 sm:grid-cols-2">
         <FormField label="Sender name" htmlFor="em-name"><Input id="em-name" value={fromName} disabled={!manage} onChange={(e) => setFromName(e.target.value)} /></FormField>

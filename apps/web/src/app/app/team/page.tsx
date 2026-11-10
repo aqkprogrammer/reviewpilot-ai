@@ -35,6 +35,7 @@ export default function TeamPage() {
   const qc = useQueryClient();
   const manage = can("team.manage");
   const [inviting, setInviting] = React.useState(false);
+  const [now] = React.useState(() => Date.now());
   const [accessFor, setAccessFor] = React.useState<Member | null>(null);
   const [removing, setRemoving] = React.useState<Member | null>(null);
   const members = useQuery({ queryKey: ["team", "members", orgId], queryFn: () => api.get<Member[]>("/team/members") });
@@ -85,7 +86,7 @@ export default function TeamPage() {
             <TBody>
               {list.map((m) => {
                 const editable = manage && !m.is_you && (membership.role === "owner" || !["owner", "admin"].includes(m.role));
-                const recent = !!m.last_login_at && Date.now() - new Date(m.last_login_at).getTime() < 24 * 60 * 60 * 1000;
+                const recent = !!m.last_login_at && now - new Date(m.last_login_at).getTime() < 24 * 60 * 60 * 1000;
                 return (
                   <TR key={m.id}>
                     <TD>

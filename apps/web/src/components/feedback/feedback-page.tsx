@@ -32,6 +32,9 @@ export interface PublicLocation {
   default_language: string;
   content: Record<string, { headline: string; subheadline: string; google_cta: string; google_note: string; private_title: string; private_note: string }>;
   is_demo: boolean;
+  /** False when the business has Agency white-label with attribution hidden. */
+  show_attribution?: boolean;
+  footer_text?: string | null;
 }
 
 const FALLBACK_BRAND = "#0e9aa7";
@@ -187,7 +190,9 @@ export function FeedbackPage({ slug }: { slug: string }) {
   const reduce = useReducedMotion();
   const t = params.get("t");
   const qr = params.get("qr");
-  const loadedAt = React.useRef(Date.now());
+  // Spam heuristic: time from mount to submit (set in an effect — render must stay pure).
+  const loadedAt = React.useRef(0);
+  React.useEffect(() => { loadedAt.current = Date.now(); }, []);
   const [lang, setLang] = React.useState<Lang>("en");
   const [langTouched, setLangTouched] = React.useState(false);
 
@@ -404,7 +409,9 @@ export function FeedbackPage({ slug }: { slug: string }) {
         </div>
       )}
       <footer className="mt-10 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-t border-border pt-5 text-center font-mono text-[10px] uppercase tracking-[0.12em] text-subtle-foreground">
-        <LogoMark size={14} /> {s.poweredBy} <span className="text-border-strong">·</span> <Link href="/privacy" className="hover:text-foreground">{s.privacyLink}</Link>
+        {loc.footer_text && <span className="w-full normal-case tracking-normal text-[11px] text-muted-foreground">{loc.footer_text}</span>}
+        {loc.show_attribution !== false && <><LogoMark size={14} /> {s.poweredBy} <span className="text-border-strong">·</span></>}
+        <Link href="/privacy" className="hover:text-foreground">{s.privacyLink}</Link>
       </footer>
     </FeedbackShell>
   );

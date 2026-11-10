@@ -102,7 +102,7 @@ async def test_subscription_override_is_limited():
     owner = await signup()
     admin = await make_super_admin()
     admin.org_id = None
-    subs = (await admin.get(f"/admin/subscriptions?q=Test")).json()["items"]
+    subs = (await admin.get("/admin/subscriptions?q=Test")).json()["items"]
     sub = next(s for s in subs if s["organization_id"] == owner.org_id)
     res = await admin.post(f"/admin/subscriptions/{sub['id']}/action", json={"action": "extend_trial", "days": 7, "reason": "sales"})
     assert res.status_code == 200 and res.json()["status"] == "trialing"

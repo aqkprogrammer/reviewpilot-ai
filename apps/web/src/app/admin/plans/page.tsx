@@ -112,7 +112,7 @@ function PlanEditor({ plan, onClose }: { plan: Plan | null; onClose: () => void 
                 <label className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5 text-[13px]">Active (offered at checkout)<Switch checked={f.is_active} onCheckedChange={(v) => setF({ ...f, is_active: v })} /></label>
                 <label className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5 text-[13px]">Highlight as most popular<Switch checked={f.is_popular} onCheckedChange={(v) => setF({ ...f, is_popular: v })} /></label>
               </div>
-              {!f.is_active && !isNew && plan && plan.subscriptions > 0 && <Notice>{plan.subscriptions} existing subscriptions keep this plan; it's only hidden from new checkouts.</Notice>}
+              {!f.is_active && !isNew && plan && plan.subscriptions > 0 && <Notice>{plan.subscriptions} existing subscriptions keep this plan; it&apos;s only hidden from new checkouts.</Notice>}
             </Section>
             {err && <Notice tone="danger">{err}</Notice>}
           </SheetBody>

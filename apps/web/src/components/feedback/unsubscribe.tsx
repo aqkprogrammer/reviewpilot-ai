@@ -1,14 +1,18 @@
 "use client";
 import * as React from "react";
-import { useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { BellOff, CircleCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api, errorMessage } from "@/lib/api";
-import { FeedbackShell } from "./feedback-page";
+import { FeedbackShell, type PublicLocation } from "./feedback-page";
 
 export function Unsubscribe() {
   const params = useSearchParams();
   const t = params.get("t");
+  const { slug } = useParams<{ slug: string }>();
+  // No tracking token is sent here, so this read has no side effects.
+  const loc = useQuery({ queryKey: ["public-location", slug], queryFn: () => api.get<PublicLocation>(`/public/locations/${slug}`, undefined, { orgId: null }), enabled: !!slug, retry: false });
   const [state, setState] = React.useState<"idle" | "busy" | "done" | "error">("idle");
   const [error, setError] = React.useState("");
   const confirm = async () => {
@@ -47,7 +51,8 @@ export function Unsubscribe() {
         )}
         </div>
       </div>
-      <p className="mt-6 text-center font-mono text-[10px] uppercase tracking-[0.14em] text-subtle-foreground">ReviewPilot AI</p>
+      {loc.data?.footer_text && <p className="mt-6 text-center text-[11px] text-muted-foreground">{loc.data.footer_text}</p>}
+      {loc.isSuccess && loc.data.show_attribution !== false && <p className="mt-3 text-center font-mono text-[10px] uppercase tracking-[0.14em] text-subtle-foreground">Powered by ReviewPilot AI</p>}
     </FeedbackShell>
   );
 }

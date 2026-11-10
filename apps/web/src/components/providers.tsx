@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/controls";
 import { ThemeProvider, useTheme } from "@/components/theme";
 import { ApiError } from "@/lib/api";
+import { installGlobalErrorListeners } from "@/lib/report-error";
 
 function ThemedToaster() {
   const { resolved } = useTheme();
@@ -27,6 +28,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       }),
   );
+  // Uncaught errors / unhandled rejections → /api/v1/public/client-errors (deduped, capped per page load).
+  React.useEffect(() => installGlobalErrorListeners(), []);
   return (
     <QueryClientProvider client={client}>
       <ThemeProvider>

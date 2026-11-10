@@ -4,7 +4,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bot, ImageUp, Palette, TriangleAlert } from "lucide-react";
+import { Bot, Download, ImageUp, Palette, Stamp, TriangleAlert } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { INDUSTRIES } from "@reviewpilot/shared-types";
 import { QueryErrorState } from "@/components/billing/plan-gate";
@@ -16,17 +17,19 @@ import { FormField } from "@/components/ui/form-field";
 import { Input, Textarea } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InlineAlert, Skeleton } from "@/components/ui/states";
-import { api, errorMessage } from "@/lib/api";
+import { api, downloadFile, errorMessage } from "@/lib/api";
 import { logout, meQueryKey, useOrg } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
 interface Org {
   id: string; name: string; industry: string; description: string | null; website: string | null; phone: string | null; email: string | null; country: string;
-  address: string | null; timezone: string; logo_url: string | null; brand_color: string; brand_tone: string; default_language: string; auto_publish_replies: boolean; is_demo: boolean;
+  address: string | null; timezone: string; logo_url: string | null; brand_color: string; brand_tone: string; default_language: string; auto_publish_replies: boolean; auto_publish_min_rating: number; is_demo: boolean;
 }
 
-/** New Instrument default brand colour (cyan signal). */
-const DEFAULT_BRAND = "#52E3E8";
+interface WhiteLabel { entitled: boolean; hide_attribution: boolean; sender_name: string | null; footer_text: string | null; settings: { hide_attribution?: boolean; sender_name?: string | null; footer_text?: string | null } }
+
+/** Default brand colour for customer-facing pages and emails (teal: keeps white button text readable). */
+const DEFAULT_BRAND = "#0E9AA7";
 /** The pre-2026 default brand colour, identified by its RGB triplet (106, 76, 255). */
 function isLegacyBrand(hex?: string | null) {
   const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex ?? "");
@@ -70,6 +73,14 @@ export function OrganizationTab() {
     onError: (e) => toast.error(errorMessage(e)),
   });
   const autoPub = useMutation({ mutationFn: (on: boolean) => api.patch("/organizations/current", { auto_publish_replies: on }), onSuccess: (_d, on) => { toast.success(on ? "Auto-publish enabled" : "Auto-publish disabled"); invalidate(); }, onError: (e) => toast.error(errorMessage(e)) });
+  const minRating = useMutation({ mutationFn: (n: number) => api.patch("/organizations/current", { auto_publish_min_rating: n }), onSuccess: () => { toast.success("Threshold updated"); invalidate(); }, onError: (e) => toast.error(errorMessage(e)) });
+  const [exporting, setExporting] = React.useState(false);
+  const exportAll = async () => {
+    setExporting(true);
+    try { await downloadFile("/organizations/current/export", undefined, "organization-export.zip"); toast.success("Export downloaded"); }
+    catch (e) { toast.error(errorMessage(e)); }
+    finally { setExporting(false); }
+  };
   const fileRef = React.useRef<HTMLInputElement>(null);
   const logo = useMutation({
     mutationFn: (f: File) => { const fd = new FormData(); fd.append("file", f); return api.post("/organizations/current/logo", fd); },
@@ -164,19 +175,104 @@ export function OrganizationTab() {
             </div>
             <Switch checked={o.auto_publish_replies} disabled={!owner || autoPub.isPending} onCheckedChange={(on) => autoPub.mutate(on)} aria-label="Auto-publish AI replies" />
           </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-background-subtle/60 px-4 py-3">
+            <div>
+              <p className="text-[13px] font-medium">Only auto-publish reviews rated</p>
+              <p className="mt-0.5 text-[12px] text-muted-foreground">Reviews below this always wait for a person. 1–2★ reviews are never auto-published.</p>
+            </div>
+            <div role="radiogroup" aria-label="Minimum rating for auto-publish" className="inline-flex h-9 items-center gap-0.5 rounded-lg border border-border bg-background-subtle p-0.5">
+              {[3, 4, 5].map((n) => (
+                <button key={n} role="radio" aria-checked={o.auto_publish_min_rating === n} disabled={!owner || minRating.isPending} onClick={() => minRating.mutate(n)}
+                  className={cn("h-full rounded-md px-3 font-mono text-[11.5px] transition disabled:cursor-not-allowed", o.auto_publish_min_rating === n ? "bg-card-elevated text-primary shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--primary)_40%,transparent)]" : "text-muted-foreground hover:text-foreground")}>
+                  {n === 5 ? "5★ only" : `${n}★ +`}
+                </button>
+              ))}
+            </div>
+          </div>
+          <ul className="grid gap-1.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-subtle-foreground sm:grid-cols-2">
+            <li>· Google-synced reviews only</li>
+            <li>· Reviews from the last 7 days</li>
+            <li>· Uses your brand tone + default language</li>
+            <li>· Counts toward your AI quota · audited</li>
+          </ul>
           <InlineAlert variant="warning" icon={TriangleAlert} title="Think carefully before enabling">
             Replies to Google reviews are public and permanent. AI can misread sarcasm, complaints or sensitive situations. We strongly recommend keeping human approval on, especially for negative reviews.
           </InlineAlert>
         </div>
       </Panel>
 
+      <WhiteLabelPanel canEdit={manage} />
+
       {owner && (
-        <Panel index="04" label="Danger zone" title={<span className="text-danger-foreground">Delete organization</span>} className="border-[color-mix(in_oklab,var(--danger)_30%,var(--border))]" description="Deleting the organization removes access for every member. Data is purged after 30 days.">
+        <Panel index="05" label="Data" title={<><Download className="size-4 text-primary" />Export & retention</>} description="Download everything your organization stores — reviews, customers, consents, campaigns, deliveries, invoices and the audit log — as CSV files in a ZIP. Secrets such as API keys are never included.">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <ul className="space-y-1 text-[12.5px] text-muted-foreground">
+              <li>Deleted organizations can be restored by support for 30 days.</li>
+              <li>After that, customer and operational data is permanently erased; invoices, payments and the audit log are kept as statutory records.</li>
+            </ul>
+            <Button variant="outline" loading={exporting} onClick={exportAll}><Download /> Export all data</Button>
+          </div>
+        </Panel>
+      )}
+
+      {owner && (
+        <Panel index="06" label="Danger zone" title={<span className="text-danger-foreground">Delete organization</span>} className="border-[color-mix(in_oklab,var(--danger)_30%,var(--border))]" description="Access ends immediately for every member. Support can restore the organization within 30 days; after that its customer and operational data is permanently erased.">
           <ConfirmDialog destructive title={`Delete ${o.name}?`} description="All locations, feedback pages, QR codes, campaigns and team access are disabled immediately. This cannot be undone from the app." confirmText={o.name} confirmLabel="Delete organization"
             onConfirm={async () => { try { await api.delete("/organizations/current"); toast.success("Organization deleted"); await logout(); } catch (e) { toast.error(errorMessage(e)); } }}
             trigger={<Button variant="danger-soft">Delete organization</Button>} />
         </Panel>
       )}
     </div>
+  );
+}
+
+function WhiteLabelPanel({ canEdit }: { canEdit: boolean }) {
+  const { orgId } = useOrg();
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["white-label", orgId], queryFn: () => api.get<WhiteLabel>("/organizations/current/white-label") });
+  const [hide, setHide] = React.useState(false);
+  const [sender, setSender] = React.useState("");
+  const [footer, setFooter] = React.useState("");
+  React.useEffect(() => {
+    if (q.data) { setHide(!!q.data.settings.hide_attribution); setSender(q.data.settings.sender_name ?? ""); setFooter(q.data.settings.footer_text ?? ""); }
+  }, [q.data]);
+  const save = useMutation({
+    mutationFn: () => api.put<WhiteLabel>("/organizations/current/white-label", { hide_attribution: hide, sender_name: sender || null, footer_text: footer || null }),
+    onSuccess: () => { toast.success("White-label settings saved"); qc.invalidateQueries({ queryKey: ["white-label"] }); },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
+  if (q.isLoading) return <Skeleton className="h-40" />;
+  if (q.error) return <QueryErrorState error={q.error} onRetry={() => q.refetch()} />;
+  const d = q.data!;
+  return (
+    <Panel index="04" label="White-label" title={<><Stamp className="size-4 text-primary" />Your brand, not ours</>} description="Remove ReviewPilot attribution from customer-facing pages and send review requests under your own name.">
+      {!d.entitled ? (
+        <InlineAlert variant="info" icon={Stamp} title="Available on the Agency and Enterprise plans"
+          action={<Button asChild size="sm" variant="outline"><Link href="/app/subscription">View plans</Link></Button>}>
+          Customers currently see a small “Powered by ReviewPilot” line and emails are sent as “Your business via ReviewPilot”.
+        </InlineAlert>
+      ) : (
+        <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="space-y-4">
+          <fieldset disabled={!canEdit} className="space-y-4">
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-background-subtle/60 px-4 py-3">
+              <div>
+                <p className="text-[13px] font-medium">Hide “Powered by ReviewPilot”</p>
+                <p className="mt-0.5 text-[12px] text-muted-foreground">Feedback, unsubscribe pages and email sender name.</p>
+              </div>
+              <Switch checked={hide} onCheckedChange={setHide} aria-label="Hide ReviewPilot attribution" />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField label="Email sender name" htmlFor="wl-sender" hint="Shown as the From name on review-request emails.">
+                <Input id="wl-sender" value={sender} maxLength={70} onChange={(e) => setSender(e.target.value)} placeholder="e.g. Glow Salon Group" />
+              </FormField>
+              <FormField label="Footer line" htmlFor="wl-footer" hint="Shown at the bottom of feedback pages and emails.">
+                <Input id="wl-footer" value={footer} maxLength={160} onChange={(e) => setFooter(e.target.value)} placeholder="e.g. © Glow Salon Group" />
+              </FormField>
+            </div>
+          </fieldset>
+          {canEdit && <div className="flex justify-end border-t border-border pt-4"><Button type="submit" loading={save.isPending}>Save white-label</Button></div>}
+        </form>
+      )}
+    </Panel>
   );
 }

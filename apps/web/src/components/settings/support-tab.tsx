@@ -103,12 +103,12 @@ function NewTicketDialog({ open, onOpenChange, onCreated }: { open: boolean; onO
             <div className="flex items-start gap-3">
               <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
               <div className="flex-1">
-                <p className="text-[13px] font-semibold">Allow support to view your organization's data</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">ReviewPilot staff can't see your reviews or customer details by default. Grant temporary, audited access only if it helps resolve this ticket. Access expires automatically.</p>
+                <p className="text-[13px] font-semibold">Allow support to view your organization&apos;s data</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">ReviewPilot staff can&apos;t see your reviews or customer details by default. Grant temporary, audited access only if it helps resolve this ticket. Access expires automatically.</p>
                 <Select value={v.grant} onValueChange={(grant) => setV({ ...v, grant })}>
                   <SelectTrigger size="sm" className="mt-3 w-56"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="0">Don't grant access</SelectItem>
+                    <SelectItem value="0">Don&apos;t grant access</SelectItem>
                     <SelectItem value="1">Grant for 1 day</SelectItem>
                     <SelectItem value="3">Grant for 3 days</SelectItem>
                     <SelectItem value="7">Grant for 7 days</SelectItem>

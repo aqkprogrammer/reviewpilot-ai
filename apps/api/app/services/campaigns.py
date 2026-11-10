@@ -27,7 +27,7 @@ from app.models import (
 from app.models.enums import CampaignStatus, Channel, DeliveryStatus, IntegrationStatus, RequestStatus
 from app.providers.email import ResendProvider, get_email_provider
 from app.providers.messaging import MockAdapter, SendResult, TwilioSMSAdapter, WhatsAppCloudAdapter
-from app.services import email_templates
+from app.services import email_templates, white_label
 from app.services.consent import can_message
 from app.services.notify import notify_org
 
@@ -174,11 +174,19 @@ async def send_review_request(db: AsyncSession, request_id: uuid.UUID, *, is_rem
     if req.channel == Channel.EMAIL:
         provider = get_email_provider()
         subject = render((campaign.message_subject if campaign else None) or (template.subject if template else None) or f"How was your visit to {org.name}?", customer=customer, org=org, location=location, link=link)
-        html, text = email_templates.review_request(business=org.name, customer_name=customer.name, message=body.replace(link, "").strip(), link=link, unsubscribe_url=unsubscribe_link(location, req.tracking_token), color=org.brand_color)
+        wl_footer = (await white_label.effective(db, org))["footer_text"]
+        html, text = email_templates.review_request(business=org.name, customer_name=customer.name, message=body.replace(link, "").strip(), link=link, unsubscribe_url=unsubscribe_link(location, req.tracking_token), color=org.brand_color, extra_footer=wl_footer)
         if not isinstance(provider, ResendProvider) and not settings.demo_mode:
             result = SendResult(False, "none", error_code="not_configured", error_message="Email provider not configured")
         else:
-            er = await provider.send(to=recipient, subject=subject, html=html, text=text, headers={"List-Unsubscribe": f"<{unsubscribe_link(location, req.tracking_token)}>"})
+            wl = await white_label.effective(db, org)
+            email_cfg = await db.scalar(select(IntegrationCredential).where(IntegrationCredential.organization_id == org.id, IntegrationCredential.provider == "email"))
+            headers = {"List-Unsubscribe": f"<{unsubscribe_link(location, req.tracking_token)}>"}
+            if email_cfg and (email_cfg.config or {}).get("reply_to"):
+                headers["Reply-To"] = email_cfg.config["reply_to"]
+            if not wl["sender_name"] and email_cfg and (email_cfg.config or {}).get("from_name") and wl["entitled"]:
+                wl = {**wl, "sender_name": email_cfg.config["from_name"]}
+            er = await provider.send(to=recipient, subject=subject, html=html, text=text, headers=headers, sender=white_label.sender_for(org, wl))
             result = SendResult(er.ok, "resend" if er.provider == "resend" else "mock", er.message_id, "sent" if er.provider == "resend" else "delivered", None if er.ok else "send_failed", er.error)
     else:
         adapter = await _adapter(db, org.id, req.channel)

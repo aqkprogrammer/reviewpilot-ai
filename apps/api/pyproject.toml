@@ -23,6 +23,7 @@ dependencies = [
   "reportlab>=4.2",
   "python-multipart>=0.0.20",
   "boto3>=1.35",
+  "sentry-sdk[fastapi]>=2.74.0",
 ]
 
 [dependency-groups]
@@ -43,5 +44,21 @@ testpaths = ["tests"]
 filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.ruff]
-line-length = 110
+# The codebase favours long single-line expressions; this is the width the import sorter wraps at.
+line-length = 160
 target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = [
+  "E501",   # long lines are house style; not enforced
+  "E741",   # `l` is the idiomatic name for locations/lines in comprehensions here
+  "B008",   # FastAPI `Depends()` / `Query()` in argument defaults
+  "B904",   # AppError translation inside `except` intentionally hides the low-level cause
+  "B905",   # zip() over equal-length sequences; strict= adds noise
+  "UP037",  # quoted forward refs (SQLAlchemy Mapped["X"]) are harmless with __future__ annotations
+  "UP046",  # keep typing.Generic for Pydantic generic models
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "tests"]

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { StatusBadge } from "@/components/app/status-badge";
 import { QueryErrorState } from "@/components/billing/plan-gate";
 import { PlansGrid } from "@/components/billing/plans-grid";
+import { BillingDetailsPanel } from "@/components/billing/billing-details";
 import type { CurrentSub, PaymentRow, Plan } from "@/components/billing/types";
 import { RazorpayIcon, StripeIcon } from "@/components/brand/brand-icons";
 import { Eyebrow, Panel } from "@/components/console/kit";
@@ -60,6 +61,12 @@ export default function SubscriptionPage() {
   const cancel = useMutation({
     mutationFn: () => api.post("/subscriptions/cancel"),
     onSuccess: () => { toast.success("Cancellation requested"); qc.invalidateQueries({ queryKey: ["subscription"] }); qc.invalidateQueries({ queryKey: meQueryKey }); },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
+
+  const undoSchedule = useMutation({
+    mutationFn: () => api.delete("/subscriptions/schedule-change"),
+    onSuccess: () => { toast.success("Scheduled change cancelled"); qc.invalidateQueries({ queryKey: ["subscription"] }); },
     onError: (e) => toast.error(errorMessage(e)),
   });
 
@@ -116,6 +123,13 @@ export default function SubscriptionPage() {
             <div className="mt-4 space-y-1.5 text-[13px]">
               {s?.status === "trialing" && trialDays != null && <p className="flex items-center gap-2 text-foreground-soft"><CalendarClock className="size-4 text-primary" />Free trial — {Math.max(0, trialDays)} day(s) left</p>}
               {s?.cancel_at_period_end && <p className="flex items-center gap-2 text-warning-foreground"><StatusDot tone="warn" />Cancellation requested — access continues until the end of the current period.</p>}
+              {s?.scheduled_change && (
+                <div className="flex flex-wrap items-center gap-2 text-foreground-soft">
+                  <CalendarClock className="size-4 text-amber" />
+                  <span>Switching to <span className="font-medium text-foreground">{s.scheduled_change.plan.name}</span>{s.scheduled_change.effective_at ? ` on ${format(new Date(s.scheduled_change.effective_at), "d MMM yyyy")}` : " at the end of this period"}.</span>
+                  {canManage && <Button variant="link" size="xs" className="h-auto" disabled={undoSchedule.isPending} onClick={() => undoSchedule.mutate()}>Keep {p?.name}</Button>}
+                </div>
+              )}
               {s?.pending_checkout && !["active"].includes(s.status) && <p className="font-mono text-[11px] text-muted-foreground">Pending checkout · {titleCase(s.pending_checkout.plan_code)} ({s.pending_checkout.interval}) — waiting for payment confirmation</p>}
               {!c.providers.razorpay && !c.providers.stripe && <p className="text-xs text-muted-foreground">{c.providers.mock ? "Demo mode — a simulated provider is used and no real charges are made." : "No payment provider is configured on this server."}</p>}
             </div>
@@ -139,9 +153,11 @@ export default function SubscriptionPage() {
 
       {plans.isLoading ? <Skeleton className="h-96 rounded-xl" /> : plans.data && <PlansGrid plans={plans.data} current={c} canManage={canManage} />}
 
+      {canManage && <BillingDetailsPanel />}
+
       {canManage && (
         <Reveal>
-          <Panel index="03" label="Ledger" title={<><Receipt className="size-4 text-primary" />Payment history</>} description="Only payments confirmed by verified provider webhooks appear here" flush>
+          <Panel index="04" label="Ledger" title={<><Receipt className="size-4 text-primary" />Payment history</>} description="Only payments confirmed by verified provider webhooks appear here" flush>
             {payments.isLoading ? <div className="p-5"><Skeleton className="h-32" /></div> : !payments.data?.length ? (
               <EmptyState compact icon={CreditCard} title="No payments yet" description="Invoices appear here after your first successful payment." />
             ) : (

@@ -43,6 +43,7 @@ class NormalizedEvent:
     period_end: datetime | None = None
     cancel_at_period_end: bool | None = None
     failure_reason: str | None = None
+    provider_plan_ref: str | None = None  # provider-side plan/price id (resolves plan changes)
     raw: dict = field(default_factory=dict)
 
 
@@ -55,6 +56,8 @@ class PaymentProvider(Protocol):
 
     async def create_checkout(self, *, org_id: str, org_name: str, email: str, plan: Any, interval: str) -> CheckoutSession: ...
     async def cancel(self, provider_subscription_id: str, at_period_end: bool = True) -> None: ...
+    async def schedule_change(self, provider_subscription_id: str, *, plan: Any, interval: str, org_id: str) -> None: ...
+    async def cancel_scheduled_change(self, provider_subscription_id: str, *, current_plan: Any, interval: str, org_id: str) -> None: ...
     def parse_webhook(self, body: bytes, headers: dict[str, str]) -> NormalizedEvent: ...
 
 
@@ -98,6 +101,34 @@ class StripeProvider:
 
     async def cancel(self, provider_subscription_id: str, at_period_end: bool = True) -> None:
         await self._post(f"/subscriptions/{provider_subscription_id}", {"cancel_at_period_end": "true" if at_period_end else "false"})
+
+    async def _get(self, path: str) -> dict:
+        async with httpx.AsyncClient(timeout=20, auth=(settings.stripe_secret_key or "", "")) as client:
+            res = await client.get(f"{self.api}{path}")
+        if res.status_code >= 400:
+            raise RuntimeError(f"Stripe error: {res.json().get('error', {}).get('message', res.text[:200])}")
+        return res.json()
+
+    async def _swap_price(self, provider_subscription_id: str, plan, interval: str, org_id: str) -> None:
+        """Point the subscription at `plan` from the next invoice on (no proration, no immediate charge)."""
+        sub = await self._get(f"/subscriptions/{provider_subscription_id}")
+        item_id = sub["items"]["data"][0]["id"]
+        amount = plan.price_yearly_minor if interval == "yearly" else plan.price_monthly_minor
+        price = await self._post("/prices", {
+            "currency": plan.currency.lower(), "unit_amount": str(amount),
+            "recurring[interval]": "year" if interval == "yearly" else "month",
+            "product_data[name]": f"ReviewPilot AI — {plan.name}",
+        })
+        await self._post(f"/subscriptions/{provider_subscription_id}", {
+            "items[0][id]": item_id, "items[0][price]": price["id"], "proration_behavior": "none",
+            "metadata[organization_id]": org_id, "metadata[plan_code]": plan.code, "metadata[interval]": interval,
+        })
+
+    async def schedule_change(self, provider_subscription_id: str, *, plan, interval: str, org_id: str) -> None:
+        await self._swap_price(provider_subscription_id, plan, interval, org_id)
+
+    async def cancel_scheduled_change(self, provider_subscription_id: str, *, current_plan, interval: str, org_id: str) -> None:
+        await self._swap_price(provider_subscription_id, current_plan, interval, org_id)
 
     def parse_webhook(self, body: bytes, headers: dict[str, str]) -> NormalizedEvent:
         sig = headers.get("stripe-signature", "")
@@ -169,6 +200,13 @@ class RazorpayProvider:
     async def cancel(self, provider_subscription_id: str, at_period_end: bool = True) -> None:
         await self._req("POST", f"/subscriptions/{provider_subscription_id}/cancel", {"cancel_at_cycle_end": 1 if at_period_end else 0})
 
+    async def schedule_change(self, provider_subscription_id: str, *, plan, interval: str, org_id: str) -> None:
+        plan_id = await self._plan_id(plan, interval)
+        await self._req("PATCH", f"/subscriptions/{provider_subscription_id}", {"plan_id": plan_id, "schedule_change_at": "cycle_end", "customer_notify": 1})
+
+    async def cancel_scheduled_change(self, provider_subscription_id: str, *, current_plan, interval: str, org_id: str) -> None:
+        await self._req("POST", f"/subscriptions/{provider_subscription_id}/cancel_scheduled_changes")
+
     def parse_webhook(self, body: bytes, headers: dict[str, str]) -> NormalizedEvent:
         sig = headers.get("x-razorpay-signature", "")
         if not sig or not settings.razorpay_webhook_secret:
@@ -182,7 +220,7 @@ class RazorpayProvider:
         sub = (payload.get("subscription") or {}).get("entity") or {}
         pay = (payload.get("payment") or {}).get("entity") or {}
         notes = sub.get("notes") or pay.get("notes") or {}
-        base = dict(provider=self.name, event_id=event_id, raw=evt, organization_id=notes.get("organization_id"), plan_code=notes.get("plan_code"), interval=notes.get("interval"), provider_subscription_id=sub.get("id") or pay.get("subscription_id"), provider_customer_id=sub.get("customer_id"))
+        base = dict(provider=self.name, event_id=event_id, raw=evt, organization_id=notes.get("organization_id"), plan_code=notes.get("plan_code"), interval=notes.get("interval"), provider_subscription_id=sub.get("id") or pay.get("subscription_id"), provider_customer_id=sub.get("customer_id"), provider_plan_ref=sub.get("plan_id"))
         et = evt.get("event")
         if et == "subscription.activated":
             return NormalizedEvent(**base, type="subscription.activated", period_start=_ts(sub.get("current_start")), period_end=_ts(sub.get("current_end")))
@@ -212,6 +250,12 @@ class MockPaymentProvider:
         return CheckoutSession(self.name, f"{settings.frontend_url}/app/subscription/checkout?session={ref}&plan={plan.code}&interval={interval}", ref)
 
     async def cancel(self, provider_subscription_id: str, at_period_end: bool = True) -> None:
+        return None
+
+    async def schedule_change(self, provider_subscription_id: str, *, plan, interval: str, org_id: str) -> None:
+        return None  # applied at period end by the demo maintenance job via a signed mock renewal event
+
+    async def cancel_scheduled_change(self, provider_subscription_id: str, *, current_plan, interval: str, org_id: str) -> None:
         return None
 
     @staticmethod

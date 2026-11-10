@@ -7,6 +7,7 @@ from urllib.parse import quote
 import jwt
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
+from pydantic import BaseModel
 from sqlalchemy import select
 
 from app.core.config import settings
@@ -29,8 +30,10 @@ from app.schemas.auth import (
     UserOut,
 )
 from app.schemas.common import Message
+from app.services import account as account_svc
 from app.services import audit
 from app.services import auth as svc
+from app.services.data_export import personal_export
 from app.services.organizations import memberships_for
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -119,6 +122,39 @@ async def update_profile(data: ProfileUpdate, user: CurrentUser, db: DB, request
     await audit.record(db, "user.profile_updated", actor=user, target_type="user", target_id=user.id, request=request)
     await db.commit()
     return user_out(user)
+
+
+class DeleteAccountIn(BaseModel):
+    confirm: str
+    password: str | None = None
+
+
+@router.get("/me/deletion-check")
+async def deletion_check(user: CurrentUser, db: DB):
+    """What deleting this account would do (shown before the user confirms)."""
+    blocking, solo = await account_svc.deletion_blockers(db, user)
+    return {"blocked_by": blocking, "organizations_scheduled": [o.name for o in solo], "requires_password": user.password_hash is not None}
+
+
+@router.delete("/me", response_model=Message, dependencies=[Depends(limiter("delete-account", 5, 3600))])
+async def delete_my_account(data: DeleteAccountIn, request: Request, response: Response, user: CurrentUser, db: DB):
+    if data.confirm != "DELETE":
+        raise AppError('Type DELETE to confirm.', code="confirmation_required")
+    if user.password_hash is not None and not verify_password(data.password or "", user.password_hash):
+        raise AppError("Password is incorrect.", code="invalid_password")
+    await account_svc.delete_account(db, user, request)
+    svc.clear_auth_cookies(response)
+    return Message(message="Your account has been deleted.")
+
+
+@router.get("/me/export", dependencies=[Depends(limiter("me-export", 5, 3600))])
+async def export_my_data(request: Request, user: CurrentUser, db: DB):
+    import json
+
+    payload = await personal_export(db, user)
+    await audit.record(db, "user.data_exported", actor=user, target_type="user", target_id=user.id, request=request)
+    await db.commit()
+    return Response(json.dumps(payload, indent=2, ensure_ascii=False, default=str), media_type="application/json", headers={"Content-Disposition": 'attachment; filename="reviewpilot-my-data.json"'})
 
 
 @router.post("/verify-email", response_model=Message, dependencies=[Depends(limiter("verify", 20, 60))])
