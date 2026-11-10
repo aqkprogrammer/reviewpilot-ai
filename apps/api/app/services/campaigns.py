@@ -144,7 +144,12 @@ async def process_campaign(db: AsyncSession, campaign_id: uuid.UUID) -> dict:
     return {"created": created, "skipped": skipped, "sent": sent, "failed": failed}
 
 
-async def send_review_request(db: AsyncSession, request_id: uuid.UUID, *, is_reminder: bool = False) -> bool:
+async def send_review_request(
+    db: AsyncSession, request_id: uuid.UUID, *, is_reminder: bool = False,
+    body_override: str | None = None, template_id: uuid.UUID | None = None,
+) -> bool:
+    """Deliver one review request. `body_override` / `template_id` supply the message for
+    requests that have no campaign (e.g. post-visit automations); campaign settings win otherwise."""
     req = await db.get(ReviewRequest, request_id)
     if req is None:
         return False
@@ -162,8 +167,9 @@ async def send_review_request(db: AsyncSession, request_id: uuid.UUID, *, is_rem
         await db.commit()
         return False
 
-    template = await db.get(CampaignTemplate, campaign.template_id) if campaign and campaign.template_id else None
-    body_tpl = (campaign.message_body if campaign and campaign.message_body else None) or (template.body if template else None) or (
+    tpl_id = campaign.template_id if campaign and campaign.template_id else (None if campaign else template_id)
+    template = await db.get(CampaignTemplate, tpl_id) if tpl_id else None
+    body_tpl = (campaign.message_body if campaign and campaign.message_body else None) or (None if campaign else body_override) or (template.body if template else None) or (
         "Hi {{name}}, thank you for visiting {{business}}! We'd value your honest feedback: {{link}}"
     )
     link = tracked_link(location, req.tracking_token)

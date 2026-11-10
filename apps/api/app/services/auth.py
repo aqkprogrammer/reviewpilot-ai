@@ -148,6 +148,8 @@ def clear_auth_cookies(response: Response) -> None:
 
 async def _default_notification_prefs(db: AsyncSession, user: User) -> None:
     for t in NOTIFICATION_TYPES:
+        if t == "digest.weekly":
+            continue  # role-based default (owner/admin on) until the user chooses; see services.digest
         db.add(NotificationPreference(user_id=user.id, type=t, in_app=True, email=t not in ("review.new",)))
 
 

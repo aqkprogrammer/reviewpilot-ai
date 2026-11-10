@@ -204,9 +204,12 @@ async def seed_demo(db: AsyncSession) -> dict:
         raise RuntimeError("Refusing to seed demo data in production")
     rnd = random.Random(42)
     await seed_reference_data(db)
-    if await db.scalar(select(Organization).where(Organization.slug == "spice-route-kitchen")):
+    if existing := await db.scalar(select(Organization).where(Organization.slug == "spice-route-kitchen")):
+        from app.services.recovery import seed_demo_cases
+
+        added = await seed_demo_cases(db, existing)  # idempotent: adds demo recovery cases to older demo DBs
         await sync_demo_passwords(db)
-        return {"status": "already_seeded", "passwords": "synced"}
+        return {"status": "already_seeded", "passwords": "synced", "recovery_cases_added": added}
 
     plans = {p.code: p for p in (await db.scalars(select(SubscriptionPlan))).all()}
     super_admin = await _user(db, "superadmin@reviewpilot.dev", "Platform Admin", settings.seed_password_super_admin, PlatformRole.SUPER_ADMIN)
@@ -393,6 +396,10 @@ async def seed_demo(db: AsyncSession) -> dict:
 
     primary = await db.scalar(select(Organization).where(Organization.slug == "spice-route-kitchen"))
     await refresh_insights(db, primary.id)
+    from app.services.recovery import seed_demo_cases
+
+    await seed_demo_cases(db, primary)  # clearly-labelled demo recovery cases from negative demo reviews
+    await db.commit()
     return {"status": "seeded", "organization": str(primary.id)}
 
 

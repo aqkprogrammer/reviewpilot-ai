@@ -70,8 +70,20 @@ class PrefOut(BaseModel):
 
 @router.get("/notifications/preferences", response_model=list[PrefOut])
 async def get_prefs(user: CurrentUser, db: DB):
+    from app.services.digest import pref_is_explicit
+
     rows = {p.type: p for p in (await db.scalars(select(NotificationPreference).where(NotificationPreference.user_id == user.id))).all()}
-    return [PrefOut(type=t, in_app=rows[t].in_app if t in rows else True, email=rows[t].email if t in rows else False) for t in NOTIFICATION_TYPES]
+    # The weekly digest defaults to ON for owners/admins and OFF for other roles until the user
+    # makes an explicit choice — show exactly what the digest sender will do.
+    leads = bool(await db.scalar(select(OrganizationMember.id).where(OrganizationMember.user_id == user.id, OrganizationMember.role.in_(["owner", "admin"])).limit(1)))
+    out = []
+    for t in NOTIFICATION_TYPES:
+        row = rows.get(t)
+        if t == "digest.weekly" and not pref_is_explicit(row, user):
+            out.append(PrefOut(type=t, in_app=row.in_app if row else True, email=leads))
+        else:
+            out.append(PrefOut(type=t, in_app=row.in_app if row else True, email=row.email if row else False))
+    return out
 
 
 @router.put("/notifications/preferences", response_model=list[PrefOut])

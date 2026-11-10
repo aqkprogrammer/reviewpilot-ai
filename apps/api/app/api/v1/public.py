@@ -20,7 +20,7 @@ from app.models import ContactMessage, Customer, FeedbackSubmission, Location, O
 from app.models.enums import ConsentStatus, ConsentType, OrgStatus, RequestStatus
 from app.providers.ai import heuristic_sentiment
 from app.schemas.common import Message
-from app.services import white_label
+from app.services import recovery, white_label
 from app.services.consent import record_consent
 from app.services.locations import review_url
 from app.services.notify import notify_org
@@ -192,6 +192,7 @@ async def submit_feedback(slug: str, data: FeedbackIn, request: Request, db: DB)
         language=data.language, consent_contact=data.consent_contact, sentiment=sentiment, channel=channel, meta={"topics": topics},
     )
     db.add(fb)
+    await recovery.auto_open_for_feedback(db, fb)  # low/negative → recovery case (alert after commit)
     await notify_org(db, org.id, "feedback.new", f"New private feedback — {loc.name}", (f"{data.rating}★ · " if data.rating else "") + data.message[:140], link="/app/reviews?tab=feedback", send_email=(data.rating or 5) <= 2)
     await db.commit()
     return Message(message="Thank you for your feedback.")

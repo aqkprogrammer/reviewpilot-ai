@@ -124,6 +124,38 @@ Email: `GET/PUT /integrations/email`, `POST /integrations/email/test`.
 `POST /subscriptions/cancel`, `GET /subscriptions/payments`, `GET /subscriptions/invoices/{id}.pdf`,
 `POST /subscriptions/mock-checkout/complete` (demo mode only).
 
+### Automations — post-visit review requests `/automations`
+API keys (`integrations.manage`): `GET/POST /automations/api-keys`, `DELETE /automations/api-keys/{id}`
+(the full `rp_live_…` secret is returned once, on creation; only a SHA-256 hash is stored).
+Inbound visits (API key, no session): `POST /automations/ingest/visits` with
+`Authorization: Bearer rp_live_…` or `X-API-Key`. The body names a `location_id` or `location_slug`, plus
+the customer, `occurred_at`, a required `external_id` and optional consent. A repeated `external_id`
+returns `200` with the existing event (idempotent).
+Team (`customers.manage` / `customers.read`): `POST /automations/visits` (manual visit),
+`GET /automations/visits`, `GET /automations/summary?days=`.
+Rules (`campaigns.manage`): `GET/POST /automations/rules`, `PATCH/DELETE /automations/rules/{id}`.
+A rule sets the delay, quiet hours, per-customer cooldown, channel and template. Visits without
+recorded consent are skipped with a `skip_reason`.
+Shopify: `GET/PUT/DELETE /automations/shopify`; `POST /automations/webhooks/shopify/{org_slug}`
+(verified with `X-Shopify-Hmac-Sha256`).
+
+### Service recovery `/recovery` (`reviews.read`; `reviews.reply` for writes)
+Cases open automatically from low-rated Google reviews and negative private feedback, or manually.
+`GET /recovery/summary`, `GET /recovery/assignees`, `GET /recovery/lookup`, `GET /recovery` (filters:
+`status` incl. `active`/`breached`, `severity`, `assignee=me|unassigned|{id}`, `location_id`, `q`; `sort`), `POST /recovery`, `GET/PATCH /recovery/{id}`,
+`POST /recovery/{id}/notes`, `POST /recovery/{id}/contact` (records first response for the SLA),
+`POST /recovery/{id}/resolve`, `POST /recovery/{id}/reopen`.
+`GET/PUT /recovery/settings` (`settings.manage`: review/feedback rating thresholds, SLA hours per
+severity, WhatsApp alert numbers).
+A worker cron alerts assignees and owners when a case breaches its SLA
+(`recovery.case_opened`, `recovery.sla_breached`).
+
+### Weekly AI digest `/digest` (`analytics.read`)
+`GET /digest/preview` (JSON), `GET /digest/preview.html` (the rendered email),
+`POST /digest/send-test` (to the current user), `GET/PUT /digest/settings` (`email_enabled` for
+yourself; `org_enabled` for everyone, owner only). A worker cron sends each organization's digest weekly to members with
+`digest.weekly` enabled; owners and admins are on by default.
+
 ### Notifications, announcements, support
 `GET /notifications`, `GET /notifications/unread-count`, `POST /notifications/{id}/read`,
 `POST /notifications/read-all`, `GET/PUT /notifications/preferences`, `GET /announcements/active`,

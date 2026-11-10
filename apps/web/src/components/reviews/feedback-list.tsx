@@ -12,6 +12,7 @@ import { Stars } from "@/components/ui/stars";
 import { StatusDot } from "@/components/ui/tech";
 import { Pagination } from "@/components/app/pagination";
 import { MonoTime, Segmented } from "@/components/dashboard/kit";
+import { RecoveryCaseLink, useRecoveryLookup } from "@/components/recovery/case-link";
 import { api, errorMessage } from "@/lib/api";
 import { useOrg } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,7 @@ export function FeedbackList() {
     onError: (e) => toast.error(errorMessage(e)),
   });
   const locName = (id: string) => locations.find((l) => l.id === id)?.name;
+  const cases = useRecoveryLookup({ feedbackIds: q.data?.items.map((f) => f.id) });
 
   return (
     <div className="space-y-4">
@@ -91,6 +93,7 @@ export function FeedbackList() {
                       </SelectTrigger>
                       <SelectContent>{STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
                     </Select>
+                    {cases.data && <RecoveryCaseLink feedbackId={f.id} existing={cases.data.feedback[f.id] ?? null} offer={(f.rating ?? 5) <= 3 || f.sentiment === "negative"} size="xs" className="mt-2 w-full md:w-[156px]" />}
                   </div>
                 </li>
               );

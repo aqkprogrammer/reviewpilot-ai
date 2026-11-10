@@ -14,6 +14,7 @@ from app.models import GoogleAccount, GoogleConnection, Location, Organization, 
 from app.models.enums import IntegrationStatus, ReplyStatus, ResponseStatus, ReviewSource
 from app.providers import google_business as gbp
 from app.providers.ai import heuristic_sentiment
+from app.services import recovery
 from app.services.notify import notify_org
 
 log = logging.getLogger("reviewpilot.google")
@@ -101,6 +102,7 @@ async def sync_connection(db: AsyncSession, connection_id: uuid.UUID) -> dict:
                     await db.flush()
                     new_review_ids.append(review.id)
                     created += 1
+                    await recovery.auto_open_for_review(db, review)  # low-rated → recovery case (alert after commit)
                     if review.response_status == ResponseStatus.PENDING:
                         await notify_org(db, conn.organization_id, "review.new", f"New {data['rating']}★ Google review — {loc.name}", (data["comment"] or "")[:160], link="/app/reviews", send_email=data["rating"] <= 2)
                 else:

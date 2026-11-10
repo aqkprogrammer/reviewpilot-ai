@@ -19,6 +19,7 @@ import { Stars } from "@/components/ui/stars";
 import { StatusDot } from "@/components/ui/tech";
 import { StatusBadge } from "@/components/app/status-badge";
 import { MonoTime, Segmented } from "@/components/dashboard/kit";
+import { RecoveryCaseLink } from "@/components/recovery/case-link";
 import { ApiError, api, errorMessage } from "@/lib/api";
 import { useOrg } from "@/lib/session";
 import { cn, titleCase } from "@/lib/utils";
@@ -174,6 +175,7 @@ function DrawerBody({ reviewId }: { reviewId: string }) {
           <Badge size="sm" variant={r.source === "demo" ? "amber" : "info"} mono>{r.source === "demo" ? "Demo data" : "Google"}</Badge>
           {r.sentiment && <Badge size="sm" variant={SENTIMENT_VARIANT[r.sentiment] ?? "neutral"} dot className="capitalize">{r.sentiment}</Badge>}
           {r.is_flagged && <Badge size="sm" variant="danger" mono><Flag /> Flagged</Badge>}
+          <RecoveryCaseLink reviewId={r.id} offer={r.rating <= 3} size="xs" className="ml-auto" />
         </div>
       </SheetHeader>
 

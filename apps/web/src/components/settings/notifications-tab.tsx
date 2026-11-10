@@ -20,6 +20,10 @@ const LABELS: Record<string, [string, string]> = {
   "team.invitation": ["Team invitations", "When someone invites you to an organization"],
   "ai.usage_limit": ["AI usage limit", "When you reach 90% of monthly AI requests"],
   "system.announcement": ["Product announcements", "Maintenance windows and new features"],
+  "recovery.case_opened": ["Recovery case opened", "When an unhappy customer needs a follow-up"],
+  "recovery.sla_breached": ["Recovery deadline missed", "When a recovery case passes its response SLA"],
+  "automation.failed": ["Automation failures", "When post-visit review requests fail to send"],
+  "digest.weekly": ["Weekly digest", "Monday briefing on reviews, replies and recovery"],
 };
 
 export function NotificationsTab() {
